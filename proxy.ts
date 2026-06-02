@@ -6,8 +6,8 @@ export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  "https://dfsutzuegywynbzmzvwz.supabase.co",
+   "b_publishable_O8heNzmt_5skljH2Rew8YA_kpoLZnke",
     {
       cookies: {
         getAll() {

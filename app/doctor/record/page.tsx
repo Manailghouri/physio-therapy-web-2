@@ -1,5 +1,3 @@
-"use client"
-
 import { Button } from "@/components/ui/button"
 import { RecordExercise } from "@/components/record-exercise"
 import Link from "next/link"

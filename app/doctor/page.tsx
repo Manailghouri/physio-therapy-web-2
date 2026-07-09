@@ -1332,7 +1332,7 @@ function PatientDetailPanel({
 
                     <div className="flex flex-wrap items-center gap-2 shrink-0">
                       <Button
-                        size="xs"
+                        size="sm"
                         variant="outline"
                         onClick={() => onMarkComplete(assignment.id, assignment.name)}
                         className={`text-[10px] font-bold h-7 ${
@@ -1345,7 +1345,7 @@ function PatientDetailPanel({
                         {isCompleted ? "✓ Completed" : "Mark Complete"}
                       </Button>
                       <Button
-                        size="xs"
+                        size="sm"
                         variant="outline"
                         onClick={() => onDeleteExercise(assignment)}
                         className="text-[10px] font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 h-7"
@@ -1353,7 +1353,7 @@ function PatientDetailPanel({
                         <Trash2 className="w-3.5 h-3.5 mr-0.5" /> Delete Exercise
                       </Button>
                       <Button
-                        size="xs"
+                        size="sm"
                         variant="ghost"
                         onClick={() => onToggleExercise(assignment.id)}
                         className="text-[10px] font-bold text-slate-600 h-7 gap-1"

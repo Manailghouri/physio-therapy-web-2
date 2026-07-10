@@ -1273,6 +1273,8 @@ export default function Home() {
                 Help doctors guide patients, track range of motion coordinates, and verify remote physiotherapy templates.
               </p>
             </div>
+
+
             
             <Link href="/signup">
               <Button size="lg" className="h-12 rounded-full bg-[#14B8A6] hover:bg-[#14b8a6]/95 text-white font-bold px-8 text-xs cursor-pointer shadow-[0_0_20px_rgba(20,184,166,0.3)] transition-all">

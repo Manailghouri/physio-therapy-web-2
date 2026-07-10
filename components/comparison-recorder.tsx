@@ -24,22 +24,41 @@ import { ANGLE_SEGMENTS, segmentKey } from "@/lib/pose-angles"
 type AnyTemplate = PoseV2Template | LearnedExerciseTemplate
 
 
-const getAudioFeedback = (lang: "en" | "ur") => ({
-  knee: {
-    up: `/audio/knee/${lang}/up.mp3`,
-    down: `/audio/knee/${lang}/down.mp3`,
-    hold: `/audio/knee/${lang}/hold.mp3`,
-    correction: `/audio/knee/${lang}/correction.mp3`,
-  },
-  scap: {
-    up: `/audio/scap/${lang}/up.mp3`,
-    down: `/audio/scap/${lang}/down.mp3`,
-    hold: `/audio/scap/${lang}/hold.mp3`,
-    level: `/audio/scap/${lang}/level.mp3`,
+const getAudioFeedback = (lang: "en" | "ur") => {
+  if (lang === "en") {
+    return {
+      knee: {
+        up: "/audio/en/up.mp3",
+        down: "/audio/en/down.mp3",
+        hold: "/audio/en/perfect.mp3",
+        correction: "/audio/en/up.mp3",
+      },
+
+      scap: {
+        up: "/audio/en/up.mp3",
+        down: "/audio/en/down.mp3",
+        hold: "/audio/en/perfect.mp3",
+        level: "/audio/en/up.mp3",
+      },
+    };
   }
-})
 
+  return {
+    knee: {
+      up: "/audio/ur/ur-up.mp3",
+      down: "/audio/ur/ur-down.mp3",
+      hold: "/audio/ur/ur-perfect.mp3",
+      correction: "/audio/ur/ur-up.mp3",
+    },
 
+    scap: {
+      up: "/audio/ur/ur-up.mp3",
+      down: "/audio/ur/ur-down.mp3",
+      hold: "/audio/ur/ur-perfect.mp3",
+      level: "/audio/ur/ur-up.mp3",
+    },
+  };
+};
 
 export interface SessionEndData {
   reps_completed: number
@@ -114,32 +133,95 @@ export function ComparisonRecorder({
   // audio feedback
   const lastAudioTimeRef = useRef<number>(0)     // cooldown tracker
   const lastSpokenRef = useRef<string>("")       // avoid repetition
+  type VoiceFeedback =
+  | "up"
+  | "almost"
+  | "perfect"
+  | "down"
 
-  const playAudio = (src: string, label: string) => {
-    const now = Date.now()
+const generateVoiceFeedback = (
+  exerciseType: string,
+  angles: JointAngleData
+): VoiceFeedback | null => {
 
-    //Prevent repeating same instruction
-    if (lastSpokenRef.current === label) return
+  // ==========================
+  // KNEE EXERCISE
+  // ==========================
+  if (exerciseType === "knees") {
 
-    // Prevent too frequent playback
-    if (now - lastAudioTimeRef.current < 2500) return
+    const left = angles.left_knee ?? 0
+    const right = angles.right_knee ?? 0
 
-    lastAudioTimeRef.current = now
-    lastSpokenRef.current = label
+    // Use the weaker leg
+    const knee = Math.min(left, right)
 
-    // Stop previous audio
-    if (audioRef.current) {
-      audioRef.current.pause()
-    }
+    if (knee < 90)
+      return "up"
 
-    // Play new audio
-    const audio = new Audio(src)
-    audioRef.current = audio
-    audio.play().catch(() => {})
+    if (knee < 150)
+      return "almost"
+
+    if (knee <= 170)
+      return "perfect"
+
+    return "down"
   }
 
+  // ==========================
+  // SHOULDERS
+  // ==========================
 
+  if (exerciseType === "shoulders") {
 
+    const left = angles.left_shoulder ?? 0
+    const right = angles.right_shoulder ?? 0
+
+    const shoulder = Math.min(left, right)
+
+    if (shoulder < 120)
+      return "up"
+
+    if (shoulder < 150)
+      return "almost"
+
+    if (shoulder <= 170)
+      return "perfect"
+
+    return "down"
+  }
+
+  return null
+}
+  const playAudio = (src: string, label: string) => {
+  const now = Date.now();
+
+  // Don't repeat the same instruction within 2.5 seconds
+  if (
+    lastSpokenRef.current === label &&
+    now - lastAudioTimeRef.current < 4000
+  ) {
+    return;
+  }
+
+  // If another audio is already playing, don't interrupt it
+  if (audioRef.current && !audioRef.current.paused) {
+    return;
+  }
+
+  lastSpokenRef.current = label;
+  lastAudioTimeRef.current = now;
+
+  const audio = new Audio(src);
+  audioRef.current = audio;
+
+ audio.onended = () => {
+    audioRef.current = null;
+    lastSpokenRef.current = "";
+};
+  audio.play().catch((err) => {
+    console.error("Audio error:", err);
+  });
+};
   const [isStreaming, setIsStreaming] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [language, setLanguage] = useState<"en" | "ur">("en")
@@ -1213,51 +1295,124 @@ const startPoseLoop = () => {
 
 
       // REAL-TIME AUDIO FEEDBACK
-      const audio = getAudioFeedback(language)
+const audio = getAudioFeedback(language)
 
-      if (anglesOfInterest && anglesOfInterest.length > 0) {
+if (anglesOfInterest && anglesOfInterest.length > 0) {
 
-        const primary = anglesOfInterest[0]
-        const angle = smoothedAngles[primary]
+  const primary = anglesOfInterest[0]
+  const angle = smoothedAngles[primary]
 
-        if (angle !== undefined) {
+  if (angle !== undefined) {
 
-          // KNEE EXERCISE
-          if (exerciseType === "knee-extension") {
+    console.log("Exercise Type:", exerciseType)
+    console.log("Primary:", primary)
+    console.log("Angle:", angle)
 
-            if (angle < 90) {
-              playAudio(audio.knee.up, "knee_up")
-            }
-            else if (angle > 165) {
-              playAudio(audio.knee.down, "knee_down")
-            }
-            else if (angle >= 140 && angle <= 165) {
-              playAudio(audio.knee.hold, "knee_hold")
-            }
-            else if (angle >= 90 && angle < 120) {
-              playAudio(audio.knee.correction, "knee_wrong")
-            }
-          }
+    // ==========================
+    // KNEE EXERCISE
+    // ==========================
+    // ==========================
+if (exerciseType === "knees") {
 
-          // SCAP EXERCISE
-          if (exerciseType === "scap-wall-slides") {
+  const leftKnee = smoothedAngles.left_knee ?? 0
+  const rightKnee = smoothedAngles.right_knee ?? 0
 
-            if (angle < 120) {
-              playAudio(audio.scap.up, "scap_up")
-            }
-            else if (angle > 165) {
-              playAudio(audio.scap.down, "scap_down")
-            }
-            else if (angle >= 140 && angle <= 165) {
-              playAudio(audio.scap.hold, "scap_hold")
-            }
-            else {
-              playAudio(audio.scap.level, "scap_wrong")
-            }
-          }
-        }
-      }
+  // Use the weaker leg
+  const kneeAngle = Math.min(leftKnee, rightKnee)
 
+  console.log("Left Knee:", leftKnee)
+  console.log("Right Knee:", rightKnee)
+
+  let feedbackLabel = ""
+
+if (kneeAngle < 90) {
+    feedbackLabel = "knee_up"
+}
+else if (kneeAngle < 150) {
+    feedbackLabel = "knee_wrong"
+}
+else if (kneeAngle <= 170) {
+    feedbackLabel = "knee_hold"
+}
+else {
+    feedbackLabel = "knee_down"
+}
+
+if (feedbackLabel !== lastSpokenRef.current) {
+
+    switch (feedbackLabel) {
+
+        case "knee_up":
+            playAudio(audio.knee.up, feedbackLabel)
+            break
+
+        case "knee_wrong":
+            playAudio(audio.knee.correction, feedbackLabel)
+            break
+
+        case "knee_hold":
+            playAudio(audio.knee.hold, feedbackLabel)
+            break
+
+        case "knee_down":
+            playAudio(audio.knee.down, feedbackLabel)
+            break
+    }
+}
+}
+
+// ==========================
+// SHOULDERS
+// ==========================
+if (exerciseType === "shoulders") {
+
+  const leftShoulder = smoothedAngles.left_shoulder ?? 0
+  const rightShoulder = smoothedAngles.right_shoulder ?? 0
+
+  // Use the lower shoulder angle
+  const shoulderAngle = Math.min(leftShoulder, rightShoulder)
+
+  console.log("Left Shoulder:", leftShoulder)
+  console.log("Right Shoulder:", rightShoulder)
+
+  let feedbackLabel = ""
+
+  if (shoulderAngle < 120) {
+    feedbackLabel = "scap_up"
+  }
+  else if (shoulderAngle < 150) {
+    feedbackLabel = "scap_wrong"
+  }
+  else if (shoulderAngle <= 170) {
+    feedbackLabel = "scap_hold"
+  }
+  else {
+    feedbackLabel = "scap_down"
+  }
+
+  if (feedbackLabel !== lastSpokenRef.current) {
+
+    switch (feedbackLabel) {
+
+      case "scap_up":
+        playAudio(audio.scap.up, feedbackLabel)
+        break
+
+      case "scap_wrong":
+        playAudio(audio.scap.level, feedbackLabel)
+        break
+
+      case "scap_hold":
+        playAudio(audio.scap.hold, feedbackLabel)
+        break
+
+      case "scap_down":
+        playAudio(audio.scap.down, feedbackLabel)
+        break
+    }
+  }
+}
+  }}
 
       // ANGLE HISTORY STORAGE
       angleHistoryRef.current.push({
@@ -2579,4 +2734,3 @@ function mapToTemplateState(
 
   return { id: nearest.id, name: nearest.name }
 }
-

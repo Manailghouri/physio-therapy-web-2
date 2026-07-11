@@ -840,6 +840,7 @@ export function RecordExercise({
                           videoBlob={recordedBlob}
                           movements={analysisResult.movements}
                           anglesOfInterest={getExerciseConfig(exerciseType)?.anglesOfInterest}
+                          autoPlay
                         />
                       </Card>
 

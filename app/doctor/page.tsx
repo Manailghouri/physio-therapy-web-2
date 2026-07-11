@@ -68,8 +68,8 @@ interface PatientData {
   info: PatientInfo
   assignments: ExerciseAssignment[]
   sessions: ExerciseSession[]
+  schedule: any[]
 }
-
 // ── Helpers ─────────────────────────────────────────────────────
 
 function getPatientName(info: PatientInfo): string {
@@ -136,8 +136,14 @@ export default function DoctorDashboard() {
   const [isMounted, setIsMounted] = useState(false)
 
   // Calendar states
-  const [selectedCalendarPatientId, setSelectedCalendarPatientId] = useState<string>("template")
-
+  const [selectedCalendarPatientId, setSelectedCalendarPatientId] =
+  useState<string>("template")
+  const [selectedCalendarAssignmentId, setSelectedCalendarAssignmentId] =
+  useState<string>("")
+    const selectedPatient = patients.find(
+  p => p.info.id === selectedCalendarPatientId
+)
+  
   // Animated Toast Banner
   const [toast, setToast] = useState<{ message: string; type: "success" | "info" | "danger" } | null>(null)
 
@@ -146,9 +152,23 @@ export default function DoctorDashboard() {
     setTimeout(() => setToast(null), 3000)
   }
 
+
+useEffect(() => {
+  if (
+    selectedPatient &&
+    selectedPatient.assignments.length > 0
+  ) {
+    setSelectedCalendarAssignmentId(
+      selectedPatient.assignments[0].id
+    )
+  }
+}, [selectedCalendarPatientId])
+
   useEffect(() => {
     setIsMounted(true)
   }, [])
+
+  
 
   const loadDashboard = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -201,19 +221,37 @@ export default function DoctorDashboard() {
       .in("patient_id", patientIds)
       .order("completed_at", { ascending: false })
 
+    const { data: scheduleRows } = await supabase
+  .from("exercise_schedule")
+  .select("*")
+  .in("patient_id", patientIds)
+
+console.log("Doctor Schedule:", scheduleRows)
+
     const assembled: PatientData[] = patientIds.map(pid => {
-      const userInfo = userRows?.find(u => u.id === pid)
-      return {
-        info: {
-          id: pid,
-          email: userInfo?.email ?? "Unknown",
-          firstName: userInfo?.first_name ?? null,
-          lastName: userInfo?.last_name ?? null,
-        },
-        assignments: (assignmentRows ?? []).filter(a => a.patient_id === pid),
-        sessions: (sessionRows ?? []).filter(s => s.patient_id === pid),
-      }
-    })
+  const userInfo = userRows?.find(u => u.id === pid)
+
+  return {
+    info: {
+      id: pid,
+      email: userInfo?.email ?? "Unknown",
+      firstName: userInfo?.first_name ?? null,
+      lastName: userInfo?.last_name ?? null,
+    },
+
+    assignments: (assignmentRows ?? []).filter(
+      a => a.patient_id === pid
+    ),
+
+    sessions: (sessionRows ?? []).filter(
+      s => s.patient_id === pid
+    ),
+
+    schedule: (scheduleRows ?? []).filter(
+      s => s.patient_id === pid
+    ),
+  }
+})
 
     setPatients(assembled)
     setLoading(false)
@@ -235,6 +273,7 @@ export default function DoctorDashboard() {
     router.push("/login")
   }
 
+  
   // ── Calculated Metrics ──────────────────────────────────────────
 
   const totalPatients = patients.length
@@ -878,7 +917,7 @@ export default function DoctorDashboard() {
                       <h2 className="text-sm font-bold text-slate-900 tracking-tight">Structured Treatment Agendas</h2>
                       <p className="text-xs text-slate-500 font-medium">Select dynamic schedules to review compliance and active templates.</p>
                     </div>
-
+                    <div className="flex items-center gap-3">
                     <select
                       value={selectedCalendarPatientId}
                       onChange={(e) => setSelectedCalendarPatientId(e.target.value)}
@@ -891,10 +930,37 @@ export default function DoctorDashboard() {
                         </option>
                       ))}
                     </select>
+                    
+                    <select
+  value={selectedCalendarAssignmentId}
+  onChange={(e) =>
+    setSelectedCalendarAssignmentId(e.target.value)
+    
+  } className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-[#14B8A6] bg-slate-50/50 outline-none w-48 font-medium font-sans"
+
+>
+                        <option value="template">Exercises</option>
+
+  {selectedPatient?.assignments.map((assignment) => (
+    <option
+      key={assignment.id}
+      value={assignment.id}
+    >
+      {assignment.name}
+    </option>
+  ))}
+</select>
+</div>
                   </div>
 
                   {/* Calendar scheduler grids */}
-                  <CalendarGrid patientId={selectedCalendarPatientId} patients={patients} />
+<CalendarGrid
+    patientId={selectedCalendarPatientId}
+    patients={patients}
+    selectedAssignmentId={
+      selectedCalendarAssignmentId
+    }
+/>
 
                   <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm font-sans">
                     <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-400 mb-4">Therapy Protocols Guide</h3>
@@ -1089,11 +1155,15 @@ function ProtocolItem({
 // ── CalendarGrid ────────────────────────────────────────────────
 
 function CalendarGrid({
-  patientId, patients
+  patientId,
+  patients,
+  selectedAssignmentId,
 }: {
   patientId: string
   patients: PatientData[]
+  selectedAssignmentId: string
 }) {
+
   const patient = patients.find(p => p.info.id === patientId)
 
   const weekdays = [
@@ -1103,7 +1173,7 @@ function CalendarGrid({
     { day: "Thursday", routine: "Rest Day", detail: "Soft Tissue Regeneration Focus" },
     { day: "Friday", routine: "Knee Extension", detail: "Quadriceps Extension Re-activation" }
   ]
-
+  
   return (
     <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
       {weekdays.map((item, i) => {
@@ -1111,20 +1181,47 @@ function CalendarGrid({
         let subText = item.detail
         let isRest = item.routine.toLowerCase().includes("rest")
 
-        if (patient && patient.assignments.length > 0) {
-          const assignIndex = i % patient.assignments.length
-          const match = patient.assignments[assignIndex]
-          if (i === 3) {
-            assignedExercise = "Rest Day"
-            subText = "Soft Tissue Regeneration"
-            isRest = true
-          } else {
-            assignedExercise = match.name || match.exercise_type
-            const config = getExerciseConfig(match.exercise_type)
-            subText = config ? `AI Model: ${config.name}` : "Active rehab routine"
-            isRest = false
-          }
-        }
+    if (patient) {
+
+const daySchedule = patient.schedule.find(
+  (s) =>
+    s.day_of_week === item.day &&
+    s.assignment_id === selectedAssignmentId
+)
+
+  if (daySchedule) {
+
+    isRest = daySchedule.is_rest_day
+
+    if (isRest) {
+
+      assignedExercise = "Rest Day"
+      subText = "Soft Tissue Regeneration"
+
+    } else {
+
+    const match = patient.assignments.find(
+    a =>
+      a.id === daySchedule.assignment_id &&
+      a.id === selectedAssignmentId
+)
+      if (match) {
+
+        assignedExercise = match.name || match.exercise_type
+
+        const config = getExerciseConfig(match.exercise_type)
+
+        subText = config
+          ? `AI Model: ${config.name}`
+          : "Active rehab routine"
+
+      }
+
+    }
+
+  }
+
+}
 
         return (
           <div key={item.day} className={`p-4 rounded-xl border flex flex-col justify-between h-40 shadow-sm ${
@@ -1204,7 +1301,7 @@ function PatientDetailPanel({
       { session: "Session 5", score: 90 }
     ]
   }, [sessions])
-
+  
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-6">
       
@@ -1316,7 +1413,7 @@ function PatientDetailPanel({
 
               const isCompleted = completedExercises.includes(assignment.id)
               const isExpanded = expandedExercise === assignment.id
-
+              
               return (
                 <div key={assignment.id} className="bg-slate-50/50 border border-slate-100 rounded-xl p-4 space-y-3 shadow-sm">
                   

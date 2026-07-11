@@ -104,10 +104,151 @@ if (
 
     if (insertErr || !assignment) {
       console.error("[assign] Failed to insert exercise assignment:", insertErr?.message)
+      
       return NextResponse.json({ error: "Failed to assign exercise" }, { status: 500 })
+      
+    }// Create calendar schedule automatically
+
+const schedule: any[] = []
+
+if (frequency === "daily") {
+  ;["Monday","Tuesday","Wednesday","Thursday","Friday"].forEach(day => {
+    schedule.push({
+      assignment_id: assignment.id,
+      patient_id,
+      day_of_week: day,
+      is_rest_day: false
+    })
+  })
+
+  schedule.push({
+    assignment_id: assignment.id,
+    patient_id,
+    day_of_week: "Saturday",
+    is_rest_day: true
+  })
+
+  schedule.push({
+    assignment_id: assignment.id,
+    patient_id,
+    day_of_week: "Sunday",
+    is_rest_day: true
+  })
+}
+
+else if (frequency === "3_times_week") {
+
+  schedule.push(
+    {
+      assignment_id: assignment.id,
+      patient_id,
+      day_of_week: "Monday",
+      is_rest_day: false
+    },
+    {
+      assignment_id: assignment.id,
+      patient_id,
+      day_of_week: "Wednesday",
+      is_rest_day: false
+    },
+    {
+      assignment_id: assignment.id,
+      patient_id,
+      day_of_week: "Friday",
+      is_rest_day: false
+    },
+    {
+      assignment_id: assignment.id,
+      patient_id,
+      day_of_week: "Tuesday",
+      is_rest_day: true
+    },
+    {
+      assignment_id: assignment.id,
+      patient_id,
+      day_of_week: "Thursday",
+      is_rest_day: true
+    },
+    {
+      assignment_id: assignment.id,
+      patient_id,
+      day_of_week: "Saturday",
+      is_rest_day: true
+    },
+    {
+      assignment_id: assignment.id,
+      patient_id,
+      day_of_week: "Sunday",
+      is_rest_day: true
     }
+  )
+
+}
+
+else if (frequency === "5_times_week") {
+
+  ;["Monday","Tuesday","Wednesday","Thursday","Friday"].forEach(day=>{
+    schedule.push({
+      assignment_id: assignment.id,
+      patient_id,
+      day_of_week: day,
+      is_rest_day:false
+    })
+  })
+
+  schedule.push({
+    assignment_id: assignment.id,
+    patient_id,
+    day_of_week:"Saturday",
+    is_rest_day:true
+  })
+
+  schedule.push({
+    assignment_id: assignment.id,
+    patient_id,
+    day_of_week:"Sunday",
+    is_rest_day:true
+  })
+
+}
+
+else if (frequency === "weekly") {
+
+  schedule.push({
+    assignment_id: assignment.id,
+    patient_id,
+    day_of_week:"Monday",
+    is_rest_day:false
+  })
+
+  ;["Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].forEach(day=>{
+    schedule.push({
+      assignment_id: assignment.id,
+      patient_id,
+      day_of_week:day,
+      is_rest_day:true
+    })
+  })
+
+}
+
+// Insert into calendar table
+
+const { error: scheduleError } = await supabaseAdmin
+  .from("exercise_schedule")
+  .insert(schedule)
+
+if (scheduleError) {
+  console.error("[schedule] Failed:", scheduleError.message)
+
+  return NextResponse.json(
+    { error: "Exercise assigned but calendar schedule could not be created." },
+    { status: 500 }
+  )
+}
 
     return NextResponse.json({ id: assignment.id })
+    
   } catch (err: any) {
     console.error("[assign] Unexpected error:", err)
     return NextResponse.json({ error: `Unexpected error: ${err?.message || String(err)}` }, { status: 500 })

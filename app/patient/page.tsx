@@ -66,6 +66,8 @@ export default function PatientPage() {
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [sessionSummaries, setSessionSummaries] = useState<Map<string, SessionSummary>>(new Map())
   const [sessions, setSessions] = useState<any[]>([])
+  const [schedule, setSchedule] = useState<any[]>([])
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState<string>("")
 
   const [codeInput, setCodeInput] = useState("")
   const [linkError, setLinkError] = useState("")
@@ -110,9 +112,27 @@ export default function PatientPage() {
           .select("id, name, exercise_type, assigned_at")
           .eq("patient_id", session.user.id)
           .order("assigned_at", { ascending: false })
+          console.log("Logged in User:", session.user.id)
 
-        if (exerciseRows && exerciseRows.length > 0) {
-          setAssignments(exerciseRows)
+const { data: scheduleRows, error: scheduleError } = await supabase
+  .from("exercise_schedule")
+  .select("*")
+  .eq("patient_id", session.user.id)
+
+console.log("Schedule Rows:", scheduleRows)
+console.log("Schedule Error:", scheduleError)
+
+if (scheduleRows) {
+  setSchedule(scheduleRows)
+  console.log("Schedule:", scheduleRows)
+}
+
+       if (exerciseRows && exerciseRows.length > 0) {
+  setAssignments(exerciseRows)
+
+  // Default selected exercise
+  setSelectedAssignmentId(exerciseRows[0].id)
+          console.log("Assignments:", exerciseRows)
 
           const { data: sessionRows } = await supabase
             .from("exercise_sessions")
@@ -607,12 +627,42 @@ export default function PatientPage() {
                   <div className="space-y-6">
                     
                     <div className="bg-white border border-slate-200 p-5 rounded-xl shadow-sm">
-                      <h2 className="text-sm font-bold text-slate-900 tracking-tight">Structured Treatment Agendas</h2>
-                      <p className="text-xs text-slate-450 mt-0.5">Highlighting daily routine treatments, completed log counts, and rest schedules.</p>
+<div className="flex items-center justify-between">
+
+  <div>
+    <h2 className="text-sm font-bold">
+     Exercise Scheduling
+    </h2>
+
+    <p className="text-xs text-slate-500">
+      Track your rehabilitation schedule.
+    </p>
+  </div>
+
+    <select
+    value={selectedAssignmentId}
+    onChange={(e) => setSelectedAssignmentId(e.target.value)}
+   className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-[#14B8A6] bg-slate-50/50 outline-none w-48 font-medium font-sans"
+  >
+    {assignments.map((a) => (
+      <option key={a.id} value={a.id}>
+        {a.name}
+      </option>
+    ))}
+  </select>
+</div>                     
+
+ <p className="text-xs text-slate-450 mt-0.5">Highlighting daily routine treatments, completed log counts, and rest schedules.</p>
                     </div>
 
                     {/* Week-based agenda grid matching Doctor Dashboard style */}
-                    <WeeklyCalendarGrid assignments={assignments} sessions={sessions} isMounted={isMounted} />
+                   <WeeklyCalendarGrid
+    assignments={assignments}
+    sessions={sessions}
+    schedule={schedule}
+    selectedAssignmentId={selectedAssignmentId}
+    isMounted={isMounted}
+/>
 
                     <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm font-sans">
                       <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-400 mb-4 font-sans">Therapy Protocols Guide</h3>
@@ -756,12 +806,17 @@ function KpiCard({
 }
 
 // ── WeeklyCalendarGrid ──────────────────────────────────────────
-
 function WeeklyCalendarGrid({
-  assignments, sessions, isMounted
+  assignments,
+  sessions,
+  schedule,
+  selectedAssignmentId,
+  isMounted,
 }: {
   assignments: Assignment[]
   sessions: any[]
+  schedule: any[]
+  selectedAssignmentId: string
   isMounted: boolean
 }) {
   const weekdays = [
@@ -775,31 +830,61 @@ function WeeklyCalendarGrid({
   ]
   
   const today = new Date()
+  const selectedSchedule = schedule.filter(
+  (s) => s.assignment_id === selectedAssignmentId
+)
   const currentDayName = format(today, "EEEE")
+  console.log(schedule)
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-4">
       {weekdays.map((item, i) => {
         const isToday = isMounted && item.day === currentDayName
-        const isRest = item.day === "Saturday" || item.day === "Sunday"
-        
-        // Find if this day of week has logged sessions
-        const isCompleted = sessions.some(s => {
-          const sDate = new Date(s.completed_at)
-          return format(sDate, "EEEE") === item.day
-        })
+      
+       // Find schedule for this weekday
+const daySchedule = selectedSchedule.find(
+  (s) => s.day_of_week === item.day
+)
 
-        let routineName = isRest ? "Rest Interval" : "Knee Extension Protocol"
-        let subText = isRest ? "Soft tissue regeneration" : "Active clinical assignment"
+// Check if this is a rest day
+const isRest = daySchedule?.is_rest_day ?? false
+   // Find if this day of week has logged sessions
+       const isCompleted = sessions.some(
+  (s) =>
+    s.assignment_id === selectedAssignmentId &&
+    format(new Date(s.completed_at), "EEEE") === item.day
+)
+// Default values
+let routineName = "No Exercise Assigned"
+let subText = "No treatment scheduled"
 
-        if (assignments.length > 0 && !isRest) {
-          const assignIndex = i % assignments.length
-          const match = assignments[assignIndex]
-          routineName = match.name
-          const config = getExerciseConfig(match.exercise_type)
-          subText = config ? `AI model: ${config.name}` : "Clinical treatment plan"
-        }
+// If there is a schedule for today
+if (daySchedule) {
 
+  if (isRest) {
+
+    routineName = "Rest Interval"
+    subText = "Soft tissue regeneration"
+
+  } else {
+
+    // Find the matching exercise assignment
+    const assignment = assignments.find(
+      (a) => a.id === daySchedule.assignment_id
+    )
+
+    if (assignment) {
+      routineName = assignment.name
+
+      const config = getExerciseConfig(assignment.exercise_type)
+
+      subText = config
+        ? `AI model: ${config.name}`
+        : "Clinical treatment plan"
+    }
+
+  }
+}
         return (
           <div key={item.day} className={`p-4 rounded-xl border flex flex-col justify-between h-40 shadow-sm transition-all ${
             isToday 

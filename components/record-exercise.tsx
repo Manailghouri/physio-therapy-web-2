@@ -83,6 +83,7 @@ export function RecordExercise({
   const coachRef = useRef<RecordingCoach | null>(null)
   const isRecordingRef = useRef(false)
   const autoStopRef = useRef(false)
+  const autoStopTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const trackedAngles = getExerciseConfig(exerciseType)?.anglesOfInterest ?? []
   const [liveAngles, setLiveAngles] = useState<Record<string, number>>({})
@@ -175,7 +176,10 @@ export function RecordExercise({
           
           if (state.status === "enough" && !autoStopRef.current) {
             autoStopRef.current = true
-            setTimeout(() => stopRecording(), 1200)
+            clearAutoStopTimer()
+            autoStopTimeoutRef.current = setTimeout(() => {
+              stopRecording()
+            }, 1200)
           }
         }
 
@@ -204,6 +208,13 @@ export function RecordExercise({
     }
   }
 
+  const clearAutoStopTimer = () => {
+    if (autoStopTimeoutRef.current) {
+      clearTimeout(autoStopTimeoutRef.current)
+      autoStopTimeoutRef.current = null
+    }
+  }
+
   const startWebcam = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
@@ -222,11 +233,15 @@ export function RecordExercise({
   }
 
   const stopWebcam = () => {
+    clearAutoStopTimer()
     stopPoseLoop()
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((track) => track.stop())
       streamRef.current = null
     }
+    isRecordingRef.current = false
+    autoStopRef.current = false
+    setRecording(false)
     setHasVideo(false)
     setCoach(null)
     setLiveAngles({})
@@ -245,11 +260,13 @@ export function RecordExercise({
   const startRecording = () => {
     if (!streamRef.current) return
 
+    clearAutoStopTimer()
     coachRef.current = new RecordingCoach(
       trackedAngles,
       getExerciseConfig(exerciseType)?.minAmplitudeDegrees ?? 15,
     )
     autoStopRef.current = false
+    isRecordingRef.current = false
     setCoach(null)
 
     chunksRef.current = []
@@ -270,15 +287,18 @@ export function RecordExercise({
   }
 
   const stopRecording = () => {
+    clearAutoStopTimer()
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === "recording") {
       mediaRecorderRef.current.stop()
       isRecordingRef.current = false
+      autoStopRef.current = false
       setRecording(false)
     }
   }
 
   useEffect(() => {
     return () => {
+      clearAutoStopTimer()
       stopPoseLoop()
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop())
@@ -723,6 +743,59 @@ export function RecordExercise({
                       </div>
 
                       <div className="space-y-4">
+                        <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Recording Coach</p>
+                            <span
+                              className={`rounded-full px-2 py-1 text-[10px] font-bold ${
+                                coach?.status === "enough"
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : coach?.status === "keep-going" || coach?.status === "no-reps"
+                                    ? "bg-amber-100 text-amber-700"
+                                    : "bg-slate-200 text-slate-700"
+                              }`}
+                            >
+                              {coach?.status ? coach.status.replace(/-/g, " ") : "waiting"}
+                            </span>
+                          </div>
+
+                          <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+                            <div
+                              className="h-full rounded-full bg-[#14B8A6] transition-all duration-300"
+                              style={{ width: `${Math.round((coach?.progress ?? 0) * 100)}%` }}
+                            />
+                          </div>
+
+                          <p className="mt-2 text-[11px] leading-snug text-slate-600">
+                            {coach?.message ?? "Start recording and the coach will tell you when the movement looks usable."}
+                          </p>
+
+                          <div className="mt-3 grid grid-cols-2 gap-2 text-[10px] font-semibold text-slate-500">
+                            <div className="rounded-lg bg-white p-2">
+                              Reps
+                              <span className="mt-0.5 block font-black text-slate-900">{coach?.reps ?? 0}</span>
+                            </div>
+                            <div className="rounded-lg bg-white p-2">
+                              Primary
+                              <span className="mt-0.5 block font-black text-slate-900">
+                                {coach?.primaryAngle ? formatAngleName(coach.primaryAngle) : "—"}
+                              </span>
+                            </div>
+                            <div className="rounded-lg bg-white p-2">
+                              Visibility
+                              <span className="mt-0.5 block font-black text-slate-900">
+                                {coach ? `${Math.round((coach.visibility ?? 0) * 100)}%` : "—"}
+                              </span>
+                            </div>
+                            <div className="rounded-lg bg-white p-2">
+                              Auto-stop
+                              <span className="mt-0.5 block font-black text-slate-900">
+                                {coach?.status === "enough" ? "Ready" : "On"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
                         <p className="text-[10px] font-bold text-slate-450 uppercase tracking-wider">Tracked Joint Coordinates</p>
                         {trackedAngles.map((angle) => {
                           const rawVal = liveAngles[angle]

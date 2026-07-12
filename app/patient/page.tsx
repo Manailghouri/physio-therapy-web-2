@@ -21,7 +21,8 @@ import {
   Menu, 
   X, 
   Sparkles,
-  ArrowUpRight
+  ArrowUpRight,
+  CheckCircle2
 } from "lucide-react"
 import {
   ResponsiveContainer,
@@ -243,6 +244,27 @@ if (scheduleRows) {
       date: format(new Date(s.completed_at), "MMM d")
     }))
 
+  // ── Today's Agenda ──────────────────────────────────────────────
+  const todayName = isMounted ? format(new Date(), "EEEE") : ""
+  const todayDateStr = isMounted ? format(new Date(), "yyyy-MM-dd") : ""
+  const todaySchedule = schedule.filter(
+    (s) => s.day_of_week === todayName && !s.is_rest_day
+  )
+  const todayExercises = todaySchedule
+    .map((s) => {
+      const assignment = assignments.find((a) => a.id === s.assignment_id)
+      if (!assignment) return null
+      const completedToday = sessions.some(
+        (ses) =>
+          ses.assignment_id === assignment.id &&
+          format(new Date(ses.completed_at), "yyyy-MM-dd") === todayDateStr
+      )
+      return { assignment, completedToday }
+    })
+    .filter(Boolean) as { assignment: Assignment; completedToday: boolean }[]
+  const allDoneToday = todayExercises.length > 0 && todayExercises.every((e) => e.completedToday)
+  const isRestDay = isMounted && todaySchedule.length === 0 && todayName !== ""
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
@@ -430,6 +452,87 @@ if (scheduleRows) {
                         icon={<Sparkles className="w-4 h-4 text-[#14B8A6]" />}
                       />
                     </section>
+
+                    {/* ── Today's Agenda ─────────────────────────────────── */}
+                    {isMounted && (
+                      <section className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                          <div>
+                            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                              Your Agenda for {isMounted ? format(new Date(), "EEEE") : ""}
+                            </h3>
+                            <p className="text-[10px] text-slate-400 mt-0.5">
+                              {isMounted ? format(new Date(), "MMMM d, yyyy") : ""}
+                            </p>
+                          </div>
+                          {allDoneToday && (
+                            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-100">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Done for today!
+                            </span>
+                          )}
+                        </div>
+
+                        {isRestDay ? (
+                          <div className="flex flex-col items-center justify-center py-10 text-center">
+                            <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
+                              <Sparkles className="w-6 h-6 text-slate-400" />
+                            </div>
+                            <p className="text-sm font-bold text-slate-700">Rest Day</p>
+                            <p className="text-xs text-slate-400 mt-1">No exercises scheduled for today. Focus on recovery.</p>
+                          </div>
+                        ) : todayExercises.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center py-10 text-center">
+                            <Dumbbell className="w-8 h-8 text-slate-300 mb-2" />
+                            <p className="text-xs font-bold text-slate-700">No exercises assigned yet</p>
+                            <p className="text-[10px] text-slate-400 mt-1">Your physiotherapist will set up your schedule soon.</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {todayExercises.map(({ assignment, completedToday }) => {
+                              const config = getExerciseConfig(assignment.exercise_type)
+                              return (
+                                <div
+                                  key={assignment.id}
+                                  className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+                                    completedToday
+                                      ? "bg-emerald-50/50 border-emerald-200"
+                                      : "bg-slate-50/50 border-slate-200 hover:border-slate-300"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className={`p-2 rounded-lg shrink-0 ${
+                                      completedToday
+                                        ? "bg-emerald-100 text-emerald-600"
+                                        : "bg-[#14B8A6]/10 text-[#14B8A6]"
+                                    }`}>
+                                      {completedToday
+                                        ? <CheckCircle2 className="w-4 h-4" />
+                                        : <Dumbbell className="w-4 h-4" />
+                                      }
+                                    </div>
+                                    <div className="min-w-0">
+                                      <h4 className="text-xs font-bold text-slate-900 truncate">{assignment.name}</h4>
+                                      <p className="text-[10px] text-slate-400 font-medium">{config?.name ?? assignment.exercise_type}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-3 shrink-0">
+                                    {completedToday ? (
+                                      <span className="text-[10px] font-bold text-emerald-600">Completed</span>
+                                    ) : (
+                                      <Link href={`/patient/compare/${assignment.id}`}>
+                                        <Button className="bg-[#14B8A6] hover:bg-[#14b8a6]/95 text-white font-bold h-8 text-[10px] rounded-lg flex items-center gap-1 cursor-pointer">
+                                          <Play className="w-3 h-3 fill-current" /> Start
+                                        </Button>
+                                      </Link>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </section>
+                    )}
 
                     {/* Split Row: Recovery Progress Graph & Sidebar Summaries */}
                     <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -664,14 +767,29 @@ if (scheduleRows) {
     isMounted={isMounted}
 />
 
-                    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm font-sans">
-                      <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-400 mb-4 font-sans">Therapy Protocols Guide</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <ProtocolItem name="Knee Extension Plan" focus="Rebuild quadriceps volume and resolve terminal extension." template="Mon, Wed, Fri" />
-                        <ProtocolItem name="Shoulder Flexion Plan" focus="Rotator cuff range & glenohumeral stability templates." template="Tue, Thu" />
-                        <ProtocolItem name="Scap Wall Slides" focus="Scapular alignment & postural biomechanic templates." template="As Prescribed" />
+                    {assignments.length > 0 && (
+                      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                        <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-400 mb-4">Assigned Protocols</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          {assignments.map(a => {
+                            const config = getExerciseConfig(a.exercise_type)
+                            const days = schedule
+                              .filter(s => s.assignment_id === a.id && !s.is_rest_day)
+                              .map(s => s.day_of_week.slice(0, 3))
+                              .join(", ")
+                            return (
+                              <div key={a.id} className="p-4 bg-slate-50/50 border border-slate-200 rounded-xl space-y-1">
+                                <div className="flex items-center justify-between font-bold text-slate-900 text-xs">
+                                  <span>{a.name}</span>
+                                  <span className="text-[9.5px] font-bold text-[#14B8A6] bg-[#14B8A6]/10 px-2 py-0.5 rounded-full">{days || "Not set"}</span>
+                                </div>
+                                <p className="text-[10px] text-slate-500 leading-relaxed font-medium">{config?.name ?? a.exercise_type}</p>
+                              </div>
+                            )
+                          })}
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                   </div>
                 )}
@@ -819,105 +937,104 @@ function WeeklyCalendarGrid({
   selectedAssignmentId: string
   isMounted: boolean
 }) {
-  const weekdays = [
-    { day: "Monday" },
-    { day: "Tuesday" },
-    { day: "Wednesday" },
-    { day: "Thursday" },
-    { day: "Friday" },
-    { day: "Saturday" },
-    { day: "Sunday" }
-  ]
-  
   const today = new Date()
+  const startOfWeek = new Date(today)
+  const dayOfWeek = today.getDay()
+  const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek
+  startOfWeek.setDate(today.getDate() + diff)
+
+  const weekdays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(startOfWeek)
+    d.setDate(startOfWeek.getDate() + i)
+    return {
+      day: format(d, "EEEE"),
+      date: format(d, "MMM d"),
+      dateStr: format(d, "yyyy-MM-dd"),
+    }
+  })
+
   const selectedSchedule = schedule.filter(
-  (s) => s.assignment_id === selectedAssignmentId
-)
+    (s) => s.assignment_id === selectedAssignmentId
+  )
   const currentDayName = format(today, "EEEE")
-  console.log(schedule)
+  const todayStr = format(today, "yyyy-MM-dd")
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-4">
-      {weekdays.map((item, i) => {
+      {weekdays.map((item) => {
         const isToday = isMounted && item.day === currentDayName
-      
-       // Find schedule for this weekday
-const daySchedule = selectedSchedule.find(
-  (s) => s.day_of_week === item.day
-)
+        const daySchedule = selectedSchedule.find(
+          (s) => s.day_of_week === item.day
+        )
+        const isRest = daySchedule?.is_rest_day ?? false
+        const isCompleted = sessions.some(
+          (s) =>
+            s.assignment_id === selectedAssignmentId &&
+            format(new Date(s.completed_at), "yyyy-MM-dd") === item.dateStr
+        )
 
-// Check if this is a rest day
-const isRest = daySchedule?.is_rest_day ?? false
-   // Find if this day of week has logged sessions
-       const isCompleted = sessions.some(
-  (s) =>
-    s.assignment_id === selectedAssignmentId &&
-    format(new Date(s.completed_at), "EEEE") === item.day
-)
-// Default values
-let routineName = "No Exercise Assigned"
-let subText = "No treatment scheduled"
+        let routineName = "No Exercise Assigned"
+        let subText = "No treatment scheduled"
 
-// If there is a schedule for today
-if (daySchedule) {
+        if (daySchedule) {
+          if (isRest) {
+            routineName = "Rest Day"
+            subText = "Recovery & regeneration"
+          } else {
+            const assignment = assignments.find(
+              (a) => a.id === daySchedule.assignment_id
+            )
+            if (assignment) {
+              routineName = assignment.name
+              const config = getExerciseConfig(assignment.exercise_type)
+              subText = config ? config.name : "Treatment plan"
+            }
+          }
+        }
 
-  if (isRest) {
-
-    routineName = "Rest Interval"
-    subText = "Soft tissue regeneration"
-
-  } else {
-
-    // Find the matching exercise assignment
-    const assignment = assignments.find(
-      (a) => a.id === daySchedule.assignment_id
-    )
-
-    if (assignment) {
-      routineName = assignment.name
-
-      const config = getExerciseConfig(assignment.exercise_type)
-
-      subText = config
-        ? `AI model: ${config.name}`
-        : "Clinical treatment plan"
-    }
-
-  }
-}
         return (
-          <div key={item.day} className={`p-4 rounded-xl border flex flex-col justify-between h-40 shadow-sm transition-all ${
-            isToday 
-              ? "border-[#14B8A6] ring-1 ring-[#14B8A6] bg-[#14B8A6]/5" 
-              : isRest 
-                ? "bg-slate-50 border-slate-200 text-slate-400" 
-                : "bg-white border-slate-200"
+          <div key={item.day} className={`p-4 rounded-xl border flex flex-col justify-between h-44 shadow-sm transition-all ${
+            isToday
+              ? "border-[#14B8A6] ring-1 ring-[#14B8A6] bg-[#14B8A6]/5"
+              : isCompleted
+                ? "bg-emerald-50/50 border-emerald-200"
+                : isRest
+                  ? "bg-slate-50 border-slate-200 text-slate-400"
+                  : "bg-white border-slate-200"
           }`}>
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className={`text-xs font-bold ${isRest ? "text-slate-400" : "text-slate-800"}`}>{item.day}</span>
+              <div className="flex items-center justify-between mb-1">
+                <span className={`text-[10px] font-bold ${isRest ? "text-slate-400" : "text-slate-800"}`}>
+                  {item.day.slice(0, 3)}
+                </span>
                 {isToday && (
-                  <span className="text-[8px] font-bold text-[#14B8A6] bg-[#14B8A6]/10 px-1.5 py-0.5 rounded-full">
+                  <span className="text-[7px] font-bold text-[#14B8A6] bg-[#14B8A6]/10 px-1.5 py-0.5 rounded-full">
                     TODAY
                   </span>
                 )}
-                {isCompleted && !isToday && <span className="w-1.5 h-1.5 rounded-full bg-[#14B8A6]"></span>}
               </div>
-              <h4 className={`text-xs font-black truncate ${isRest ? "text-slate-400" : "text-slate-900"}`}>
+              <p className={`text-[9px] font-medium mb-2 ${isRest ? "text-slate-300" : "text-slate-400"}`}>
+                {item.date}
+              </p>
+              <h4 className={`text-[11px] font-black truncate leading-tight ${isRest ? "text-slate-400" : "text-slate-900"}`}>
                 {routineName}
               </h4>
-              <p className="text-[10px] text-slate-400 leading-snug mt-1.5 line-clamp-2">
+              <p className="text-[9px] text-slate-400 leading-snug mt-1 line-clamp-2">
                 {subText}
               </p>
             </div>
 
-            <div className="border-t border-slate-100 pt-2 text-[9px] font-bold text-slate-400">
+            <div className="border-t border-slate-100 pt-2 text-[9px] font-bold text-slate-400 flex items-center justify-between">
               {isCompleted ? (
-                <span className="text-[#14B8A6]">✓ Completed Log</span>
+                <span className="text-emerald-600 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Completed
+                </span>
               ) : isRest ? (
                 "Rest Day"
+              ) : daySchedule ? (
+                "Scheduled"
               ) : (
-                "Upcoming Plan"
+                "No plan"
               )}
             </div>
           </div>

@@ -38,12 +38,17 @@ const {
   template,
   notes,
   allow_progression,
-
   reps,
   sets,
-  frequency
+  selected_days,
 } = body
-    // Validate required fields
+
+const ALL_DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+
+const selectedDays: string[] = Array.isArray(selected_days)
+  ? selected_days.filter((d: string) => ALL_DAYS.includes(d))
+  : []
+
 if (
   !patient_id ||
   !name ||
@@ -53,10 +58,18 @@ if (
   !template ||
   !reps ||
   !sets ||
-  !frequency
-) {  
+  selectedDays.length === 0
+) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
+
+const dayCount = selectedDays.length
+const frequency =
+  dayCount === 7 ? "daily" :
+  dayCount === 5 ? "5_times_week" :
+  dayCount === 3 ? "3_times_week" :
+  dayCount === 1 ? "weekly" :
+  "custom"
 
     // Verify caller is a doctor
     const { data: doctor, error: doctorErr } = await supabaseAdmin
@@ -104,135 +117,15 @@ if (
 
     if (insertErr || !assignment) {
       console.error("[assign] Failed to insert exercise assignment:", insertErr?.message)
-      
       return NextResponse.json({ error: "Failed to assign exercise" }, { status: 500 })
-      
-    }// Create calendar schedule automatically
-
-const schedule: any[] = []
-
-if (frequency === "daily") {
-  ;["Monday","Tuesday","Wednesday","Thursday","Friday"].forEach(day => {
-    schedule.push({
-      assignment_id: assignment.id,
-      patient_id,
-      day_of_week: day,
-      is_rest_day: false
-    })
-  })
-
-  schedule.push({
-    assignment_id: assignment.id,
-    patient_id,
-    day_of_week: "Saturday",
-    is_rest_day: true
-  })
-
-  schedule.push({
-    assignment_id: assignment.id,
-    patient_id,
-    day_of_week: "Sunday",
-    is_rest_day: true
-  })
-}
-
-else if (frequency === "3_times_week") {
-
-  schedule.push(
-    {
-      assignment_id: assignment.id,
-      patient_id,
-      day_of_week: "Monday",
-      is_rest_day: false
-    },
-    {
-      assignment_id: assignment.id,
-      patient_id,
-      day_of_week: "Wednesday",
-      is_rest_day: false
-    },
-    {
-      assignment_id: assignment.id,
-      patient_id,
-      day_of_week: "Friday",
-      is_rest_day: false
-    },
-    {
-      assignment_id: assignment.id,
-      patient_id,
-      day_of_week: "Tuesday",
-      is_rest_day: true
-    },
-    {
-      assignment_id: assignment.id,
-      patient_id,
-      day_of_week: "Thursday",
-      is_rest_day: true
-    },
-    {
-      assignment_id: assignment.id,
-      patient_id,
-      day_of_week: "Saturday",
-      is_rest_day: true
-    },
-    {
-      assignment_id: assignment.id,
-      patient_id,
-      day_of_week: "Sunday",
-      is_rest_day: true
     }
-  )
 
-}
-
-else if (frequency === "5_times_week") {
-
-  ;["Monday","Tuesday","Wednesday","Thursday","Friday"].forEach(day=>{
-    schedule.push({
-      assignment_id: assignment.id,
-      patient_id,
-      day_of_week: day,
-      is_rest_day:false
-    })
-  })
-
-  schedule.push({
-    assignment_id: assignment.id,
-    patient_id,
-    day_of_week:"Saturday",
-    is_rest_day:true
-  })
-
-  schedule.push({
-    assignment_id: assignment.id,
-    patient_id,
-    day_of_week:"Sunday",
-    is_rest_day:true
-  })
-
-}
-
-else if (frequency === "weekly") {
-
-  schedule.push({
-    assignment_id: assignment.id,
-    patient_id,
-    day_of_week:"Monday",
-    is_rest_day:false
-  })
-
-  ;["Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"].forEach(day=>{
-    schedule.push({
-      assignment_id: assignment.id,
-      patient_id,
-      day_of_week:day,
-      is_rest_day:true
-    })
-  })
-
-}
-
-// Insert into calendar table
+const schedule = ALL_DAYS.map(day => ({
+  assignment_id: assignment.id,
+  patient_id,
+  day_of_week: day,
+  is_rest_day: !selectedDays.includes(day),
+}))
 
 const { error: scheduleError } = await supabaseAdmin
   .from("exercise_schedule")
@@ -240,7 +133,6 @@ const { error: scheduleError } = await supabaseAdmin
 
 if (scheduleError) {
   console.error("[schedule] Failed:", scheduleError.message)
-
   return NextResponse.json(
     { error: "Exercise assigned but calendar schedule could not be created." },
     { status: 500 }

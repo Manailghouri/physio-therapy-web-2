@@ -960,16 +960,37 @@ console.log("Doctor Schedule:", scheduleRows)
     selectedAssignmentId={
       selectedCalendarAssignmentId
     }
+    isMounted={isMounted}
 />
 
-                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm font-sans">
-                    <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-400 mb-4">Therapy Protocols Guide</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <ProtocolItem name="Knee Extension" focus="Rebuild quadriceps volume and resolve terminal extension." template="Mon, Fri" />
-                      <ProtocolItem name="Shoulder Flexion" focus="Rotator cuff range & glenohumeral stability templates." template="Tue" />
-                      <ProtocolItem name="Scap Wall Slides" focus="Scapular alignment & postural biomechanic checks." template="Wed" />
+                  {selectedPatient && selectedPatient.assignments.length > 0 && (
+                    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                      <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-400 mb-4">Assigned Protocols</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {selectedPatient.assignments.map(a => {
+                          const config = getExerciseConfig(a.exercise_type)
+                          const days = selectedPatient.schedule
+                            .filter(s => s.assignment_id === a.id && !s.is_rest_day)
+                            .map(s => s.day_of_week.slice(0, 3))
+                            .join(", ")
+                          return (
+                            <div key={a.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between h-36">
+                              <div>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="p-1 rounded bg-[#14B8A6]/10 text-[#14B8A6]"><Dumbbell className="w-3.5 h-3.5" /></div>
+                                  <h4 className="text-xs font-bold text-slate-900 truncate">{a.name}</h4>
+                                </div>
+                                <p className="text-[11px] text-slate-500 leading-snug line-clamp-2">{config?.name ?? a.exercise_type}</p>
+                              </div>
+                              <div className="border-t border-slate-100 pt-2.5 text-[9px] font-bold text-slate-400">
+                                Schedule: <span className="text-[#14B8A6]">{days || "Not set"}</span>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                 </div>
               )}
@@ -1158,92 +1179,98 @@ function CalendarGrid({
   patientId,
   patients,
   selectedAssignmentId,
+  isMounted,
 }: {
   patientId: string
   patients: PatientData[]
   selectedAssignmentId: string
+  isMounted: boolean
 }) {
 
   const patient = patients.find(p => p.info.id === patientId)
+  const today = new Date()
+  const currentDayName = isMounted ? format(today, "EEEE") : ""
 
-  const weekdays = [
-    { day: "Monday", routine: "Knee Extension", detail: "Quadriceps Volume Extension" },
-    { day: "Tuesday", routine: "Shoulder Exercise", detail: "Rotator Cuff Stability Focus" },
-    { day: "Wednesday", routine: "Scap Wall Slides", detail: "Scapular Mobility Posture Alignment" },
-    { day: "Thursday", routine: "Rest Day", detail: "Soft Tissue Regeneration Focus" },
-    { day: "Friday", routine: "Knee Extension", detail: "Quadriceps Extension Re-activation" }
-  ]
-  
+  const weekdays = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-      {weekdays.map((item, i) => {
-        let assignedExercise = item.routine
-        let subText = item.detail
-        let isRest = item.routine.toLowerCase().includes("rest")
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-4">
+      {weekdays.map((day) => {
+        const isToday = isMounted && day === currentDayName
+        let assignedExercise = ""
+        let subText = ""
+        let isRest = false
+        let sessionCount = 0
 
     if (patient) {
-
 const daySchedule = patient.schedule.find(
   (s) =>
-    s.day_of_week === item.day &&
+    s.day_of_week === day &&
     s.assignment_id === selectedAssignmentId
 )
-
   if (daySchedule) {
-
     isRest = daySchedule.is_rest_day
-
     if (isRest) {
-
       assignedExercise = "Rest Day"
-      subText = "Soft Tissue Regeneration"
-
+      subText = "Recovery"
     } else {
-
     const match = patient.assignments.find(
     a =>
       a.id === daySchedule.assignment_id &&
       a.id === selectedAssignmentId
 )
       if (match) {
-
         assignedExercise = match.name || match.exercise_type
-
         const config = getExerciseConfig(match.exercise_type)
-
-        subText = config
-          ? `AI Model: ${config.name}`
-          : "Active rehab routine"
-
+        subText = config ? config.name : "Active rehab"
       }
-
+      sessionCount = patient.sessions.filter(
+        s => s.assignment_id === selectedAssignmentId &&
+        format(new Date(s.completed_at), "EEEE") === day
+      ).length
     }
-
   }
-
 }
 
         return (
-          <div key={item.day} className={`p-4 rounded-xl border flex flex-col justify-between h-40 shadow-sm ${
-            isRest 
-              ? "bg-slate-50 border-slate-200 text-slate-400" 
-              : "bg-white border-[#14B8A6]/20 ring-1 ring-[#14B8A6]/5"
+          <div key={day} className={`p-3 rounded-xl border flex flex-col justify-between h-40 shadow-sm transition-all ${
+            isToday
+              ? "border-[#14B8A6] ring-1 ring-[#14B8A6] bg-[#14B8A6]/5"
+              : isRest
+                ? "bg-slate-50 border-slate-200 text-slate-400"
+                : "bg-white border-slate-200"
           }`}>
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-800">{item.day}</span>
-                {!isRest && <span className="w-1.5 h-1.5 rounded-full bg-[#14B8A6]"></span>}
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-bold text-slate-800">{day.slice(0, 3)}</span>
+                {isToday && (
+                  <span className="text-[7px] font-bold text-[#14B8A6] bg-[#14B8A6]/10 px-1.5 py-0.5 rounded-full">
+                    TODAY
+                  </span>
+                )}
               </div>
-              <h4 className={`text-xs font-black truncate ${isRest ? "text-slate-400" : "text-slate-900"}`}>
-                {assignedExercise}
+              <h4 className={`text-[11px] font-black truncate leading-tight mt-1 ${isRest ? "text-slate-400" : assignedExercise ? "text-slate-900" : "text-slate-300"}`}>
+                {assignedExercise || "No plan"}
               </h4>
-              <p className="text-[10px] text-slate-400 leading-snug mt-1.5 line-clamp-2">
-                {subText}
+              <p className="text-[9px] text-slate-400 leading-snug mt-1 line-clamp-2">
+                {subText || "—"}
               </p>
             </div>
 
-            <div className="border-t border-slate-100 pt-2 text-[9px] font-bold text-slate-400">
-              {isRest ? "Rest Interval" : "Scheduled Compliance Target"}
+            <div className="border-t border-slate-100 pt-2 text-[9px] font-bold text-slate-400 flex items-center justify-between">
+              {isRest ? (
+                "Rest Day"
+              ) : assignedExercise ? (
+                <span className="flex items-center gap-1">
+                  {sessionCount > 0 ? (
+                    <span className="text-emerald-600">{sessionCount} session{sessionCount !== 1 ? "s" : ""}</span>
+                  ) : (
+                    "Scheduled"
+                  )}
+                </span>
+              ) : (
+                "—"
+              )}
             </div>
           </div>
         )

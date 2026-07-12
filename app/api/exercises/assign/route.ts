@@ -38,12 +38,17 @@ const {
   template,
   notes,
   allow_progression,
-
   reps,
   sets,
-  frequency
+  selected_days,
 } = body
-    // Validate required fields
+
+const ALL_DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+
+const selectedDays: string[] = Array.isArray(selected_days)
+  ? selected_days.filter((d: string) => ALL_DAYS.includes(d))
+  : []
+
 if (
   !patient_id ||
   !name ||
@@ -53,10 +58,18 @@ if (
   !template ||
   !reps ||
   !sets ||
-  !frequency
-) {  
+  selectedDays.length === 0
+) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
+
+const dayCount = selectedDays.length
+const frequency =
+  dayCount === 7 ? "daily" :
+  dayCount === 5 ? "5_times_week" :
+  dayCount === 3 ? "3_times_week" :
+  dayCount === 1 ? "weekly" :
+  "custom"
 
     // Verify caller is a doctor
     const { data: doctor, error: doctorErr } = await supabaseAdmin
@@ -107,7 +120,27 @@ if (
       return NextResponse.json({ error: "Failed to assign exercise" }, { status: 500 })
     }
 
+const schedule = ALL_DAYS.map(day => ({
+  assignment_id: assignment.id,
+  patient_id,
+  day_of_week: day,
+  is_rest_day: !selectedDays.includes(day),
+}))
+
+const { error: scheduleError } = await supabaseAdmin
+  .from("exercise_schedule")
+  .insert(schedule)
+
+if (scheduleError) {
+  console.error("[schedule] Failed:", scheduleError.message)
+  return NextResponse.json(
+    { error: "Exercise assigned but calendar schedule could not be created." },
+    { status: 500 }
+  )
+}
+
     return NextResponse.json({ id: assignment.id })
+    
   } catch (err: any) {
     console.error("[assign] Unexpected error:", err)
     return NextResponse.json({ error: `Unexpected error: ${err?.message || String(err)}` }, { status: 500 })

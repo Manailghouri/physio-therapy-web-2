@@ -20,7 +20,8 @@ import {
   ChevronDown, ChevronRight, Plus, Loader2, Clock,
   Calendar as CalendarIcon, Target, User, Bell, LogOut, Sparkles,
   ShieldAlert, Menu, X, ArrowUpRight, CheckCircle2,
-  Trash2, Eye, EyeOff, Clipboard, AlertTriangle
+  Trash2, Eye, EyeOff, Clipboard, AlertTriangle, Camera, Wifi,
+  Download, MonitorSmartphone, Globe, CheckCircle
 } from "lucide-react"
 import { format, formatDistanceToNow } from "date-fns"
 import { motion, AnimatePresence } from "framer-motion"
@@ -68,8 +69,8 @@ interface PatientData {
   info: PatientInfo
   assignments: ExerciseAssignment[]
   sessions: ExerciseSession[]
+  schedule: any[]
 }
-
 // ── Helpers ─────────────────────────────────────────────────────
 
 function getPatientName(info: PatientInfo): string {
@@ -136,8 +137,15 @@ export default function DoctorDashboard() {
   const [isMounted, setIsMounted] = useState(false)
 
   // Calendar states
-  const [selectedCalendarPatientId, setSelectedCalendarPatientId] = useState<string>("template")
-
+  const [selectedCalendarPatientId, setSelectedCalendarPatientId] =
+  useState<string>("template")
+  const [selectedCalendarAssignmentId, setSelectedCalendarAssignmentId] =
+  useState<string>("all")
+  const [calendarView, setCalendarView] = useState<"week" | "month" | "today">("week")
+    const selectedPatient = patients.find(
+  p => p.info.id === selectedCalendarPatientId
+)
+  
   // Animated Toast Banner
   const [toast, setToast] = useState<{ message: string; type: "success" | "info" | "danger" } | null>(null)
 
@@ -146,9 +154,23 @@ export default function DoctorDashboard() {
     setTimeout(() => setToast(null), 3000)
   }
 
+
+useEffect(() => {
+  if (
+    selectedPatient &&
+    selectedPatient.assignments.length > 0
+  ) {
+    setSelectedCalendarAssignmentId(
+      selectedPatient.assignments[0].id
+    )
+  }
+}, [selectedCalendarPatientId])
+
   useEffect(() => {
     setIsMounted(true)
   }, [])
+
+  
 
   const loadDashboard = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession()
@@ -201,19 +223,37 @@ export default function DoctorDashboard() {
       .in("patient_id", patientIds)
       .order("completed_at", { ascending: false })
 
+    const { data: scheduleRows } = await supabase
+  .from("exercise_schedule")
+  .select("*")
+  .in("patient_id", patientIds)
+
+console.log("Doctor Schedule:", scheduleRows)
+
     const assembled: PatientData[] = patientIds.map(pid => {
-      const userInfo = userRows?.find(u => u.id === pid)
-      return {
-        info: {
-          id: pid,
-          email: userInfo?.email ?? "Unknown",
-          firstName: userInfo?.first_name ?? null,
-          lastName: userInfo?.last_name ?? null,
-        },
-        assignments: (assignmentRows ?? []).filter(a => a.patient_id === pid),
-        sessions: (sessionRows ?? []).filter(s => s.patient_id === pid),
-      }
-    })
+  const userInfo = userRows?.find(u => u.id === pid)
+
+  return {
+    info: {
+      id: pid,
+      email: userInfo?.email ?? "Unknown",
+      firstName: userInfo?.first_name ?? null,
+      lastName: userInfo?.last_name ?? null,
+    },
+
+    assignments: (assignmentRows ?? []).filter(
+      a => a.patient_id === pid
+    ),
+
+    sessions: (sessionRows ?? []).filter(
+      s => s.patient_id === pid
+    ),
+
+    schedule: (scheduleRows ?? []).filter(
+      s => s.patient_id === pid
+    ),
+  }
+})
 
     setPatients(assembled)
     setLoading(false)
@@ -235,6 +275,7 @@ export default function DoctorDashboard() {
     router.push("/login")
   }
 
+  
   // ── Calculated Metrics ──────────────────────────────────────────
 
   const totalPatients = patients.length
@@ -433,6 +474,7 @@ export default function DoctorDashboard() {
           <SidebarLink active={activeTab === "overview"} onClick={() => { setActiveTab("overview"); setExpandedPatient(null) }} icon={<Activity className="w-4 h-4" />} label="Overview" />
           <SidebarLink active={activeTab === "patients"} onClick={() => { setActiveTab("patients") }} icon={<Users className="w-4 h-4" />} label="Patients" />
           <SidebarLink active={activeTab === "calendar"} onClick={() => { setActiveTab("calendar") }} icon={<CalendarIcon className="w-4 h-4" />} label="Calendar" />
+          <SidebarLink active={activeTab === "droidcam"} onClick={() => { setActiveTab("droidcam") }} icon={<Camera className="w-4 h-4" />} label="DroidCam Setup" />
         </nav>
 
         {/* User profile */}
@@ -489,6 +531,7 @@ export default function DoctorDashboard() {
                 <SidebarLink active={activeTab === "overview"} onClick={() => { setActiveTab("overview"); setExpandedPatient(null); setSidebarOpen(false) }} icon={<Activity className="w-4 h-4" />} label="Overview" />
                 <SidebarLink active={activeTab === "patients"} onClick={() => { setActiveTab("patients"); setSidebarOpen(false) }} icon={<Users className="w-4 h-4" />} label="Patients" />
                 <SidebarLink active={activeTab === "calendar"} onClick={() => { setActiveTab("calendar"); setSidebarOpen(false) }} icon={<CalendarIcon className="w-4 h-4" />} label="Calendar" />
+                <SidebarLink active={activeTab === "droidcam"} onClick={() => { setActiveTab("droidcam"); setSidebarOpen(false) }} icon={<Camera className="w-4 h-4" />} label="DroidCam Setup" />
               </nav>
 
               <div className="p-4 border-t border-slate-800 bg-slate-950/40">
@@ -873,35 +916,329 @@ export default function DoctorDashboard() {
               {activeTab === "calendar" && (
                 <div className="space-y-6">
                   
-                  <div className="bg-white border border-slate-200 p-5 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                      <h2 className="text-sm font-bold text-slate-900 tracking-tight">Structured Treatment Agendas</h2>
-                      <p className="text-xs text-slate-500 font-medium">Select dynamic schedules to review compliance and active templates.</p>
+                  <div className="bg-white border border-slate-200 p-5 rounded-xl shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h2 className="text-sm font-bold text-slate-900 tracking-tight">Structured Treatment Agendas</h2>
+                        <p className="text-xs text-slate-500 font-medium">Select dynamic schedules to review compliance and active templates.</p>
+                      </div>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {/* View Toggle */}
+                        <div className="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
+                          <button
+                            onClick={() => setCalendarView("today")}
+                            className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all ${
+                              calendarView === "today"
+                                ? "bg-white text-slate-900 shadow-sm"
+                                : "text-slate-500 hover:text-slate-700"
+                            }`}
+                          >
+                            Today
+                          </button>
+                          <button
+                            onClick={() => setCalendarView("week")}
+                            className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all ${
+                              calendarView === "week"
+                                ? "bg-white text-slate-900 shadow-sm"
+                                : "text-slate-500 hover:text-slate-700"
+                            }`}
+                          >
+                            This Week
+                          </button>
+                          <button
+                            onClick={() => setCalendarView("month")}
+                            className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all ${
+                              calendarView === "month"
+                                ? "bg-white text-slate-900 shadow-sm"
+                                : "text-slate-500 hover:text-slate-700"
+                            }`}
+                          >
+                            This Month
+                          </button>
+                        </div>
+                        <select
+                          value={selectedCalendarPatientId}
+                          onChange={(e) => setSelectedCalendarPatientId(e.target.value)}
+                          className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-[#14B8A6] bg-slate-50/50 outline-none font-medium font-sans"
+                        >
+                          <option value="template">All Patients</option>
+                          {patients.map(p => (
+                            <option key={p.info.id} value={p.info.id}>
+                              {getPatientName(p.info)}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={selectedCalendarAssignmentId}
+                          onChange={(e) => setSelectedCalendarAssignmentId(e.target.value)}
+                          className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-[#14B8A6] bg-slate-50/50 outline-none font-medium font-sans"
+                        >
+                          <option value="all">All Exercises</option>
+                          {selectedPatient?.assignments.map((assignment) => (
+                            <option key={assignment.id} value={assignment.id}>
+                              {assignment.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-
-                    <select
-                      value={selectedCalendarPatientId}
-                      onChange={(e) => setSelectedCalendarPatientId(e.target.value)}
-                      className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-[#14B8A6] bg-slate-50/50 outline-none w-48 font-medium font-sans"
-                    >
-                      <option value="template">Standard Protocol Agendas</option>
-                      {patients.map(p => (
-                        <option key={p.info.id} value={p.info.id}>
-                          {getPatientName(p.info)}
-                        </option>
-                      ))}
-                    </select>
                   </div>
 
                   {/* Calendar scheduler grids */}
-                  <CalendarGrid patientId={selectedCalendarPatientId} patients={patients} />
+                  {calendarView === "today" ? (
+                    <DoctorTodayView
+                      patientId={selectedCalendarPatientId}
+                      patients={patients}
+                      selectedAssignmentId={selectedCalendarAssignmentId}
+                      isMounted={isMounted}
+                      onExerciseClick={(patientId) => {
+                        setExpandedPatient(patientId)
+                        setExpandedExercise(null)
+                        setActiveTab("patients")
+                      }}
+                    />
+                  ) : calendarView === "month" ? (
+                    <DoctorMonthCalendarGrid
+                      patientId={selectedCalendarPatientId}
+                      patients={patients}
+                      selectedAssignmentId={selectedCalendarAssignmentId}
+                      isMounted={isMounted}
+                      onExerciseClick={(patientId) => {
+                        setExpandedPatient(patientId)
+                        setExpandedExercise(null)
+                        setActiveTab("patients")
+                      }}
+                    />
+                  ) : (
+                    <CalendarGrid
+                      patientId={selectedCalendarPatientId}
+                      patients={patients}
+                      selectedAssignmentId={selectedCalendarAssignmentId}
+                      isMounted={isMounted}
+                      onExerciseClick={(patientId) => {
+                        setExpandedPatient(patientId)
+                        setExpandedExercise(null)
+                        setActiveTab("patients")
+                      }}
+                    />
+                  )}
 
-                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm font-sans">
-                    <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-400 mb-4">Therapy Protocols Guide</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <ProtocolItem name="Knee Extension" focus="Rebuild quadriceps volume and resolve terminal extension." template="Mon, Fri" />
-                      <ProtocolItem name="Shoulder Flexion" focus="Rotator cuff range & glenohumeral stability templates." template="Tue" />
-                      <ProtocolItem name="Scap Wall Slides" focus="Scapular alignment & postural biomechanic checks." template="Wed" />
+                  {selectedPatient && selectedPatient.assignments.length > 0 && (
+                    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                      <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider text-slate-400 mb-4">Assigned Protocols</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {selectedPatient.assignments.map(a => {
+                          const config = getExerciseConfig(a.exercise_type)
+                          const days = selectedPatient.schedule
+                            .filter(s => s.assignment_id === a.id && !s.is_rest_day)
+                            .map(s => s.day_of_week.slice(0, 3))
+                            .join(", ")
+                          return (
+                            <div key={a.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between h-36">
+                              <div>
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className="p-1 rounded bg-[#14B8A6]/10 text-[#14B8A6]"><Dumbbell className="w-3.5 h-3.5" /></div>
+                                  <h4 className="text-xs font-bold text-slate-900 truncate">{a.name}</h4>
+                                </div>
+                                <p className="text-[11px] text-slate-500 leading-snug line-clamp-2">{config?.name ?? a.exercise_type}</p>
+                              </div>
+                              <div className="border-t border-slate-100 pt-2.5 text-[9px] font-bold text-slate-400">
+                                Schedule: <span className="text-[#14B8A6]">{days || "Not set"}</span>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              )}
+
+              {/* ── 4. DROIDCAM SETUP TAB ─────────────────────────────── */}
+              {activeTab === "droidcam" && (
+                <div className="space-y-6 max-w-3xl mx-auto">
+
+                  {/* Hero Banner */}
+                  <div className="bg-[#0F172A] rounded-xl p-6 text-white relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-48 h-48 bg-[#14B8A6]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                    <div className="relative flex items-start gap-4">
+                      <div className="p-3 rounded-xl bg-[#14B8A6]/20 border border-[#14B8A6]/30 shrink-0">
+                        <Camera className="w-6 h-6 text-[#14B8A6]" />
+                      </div>
+                      <div>
+                        <h2 className="text-base font-black tracking-tight">Connect to DroidCam</h2>
+                        <p className="text-xs text-slate-400 mt-1 leading-relaxed max-w-lg">
+                          Use your smartphone as a high-quality wireless webcam for exercise recording sessions. DroidCam gives you a wider field of view and better positioning flexibility than a built-in laptop camera.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Requirements */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4">Before You Start</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
+                        <MonitorSmartphone className="w-4 h-4 text-[#14B8A6] shrink-0" />
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-900">Smartphone</p>
+                          <p className="text-[9px] text-slate-400">Android or iPhone</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
+                        <Globe className="w-4 h-4 text-[#14B8A6] shrink-0" />
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-900">Same Wi-Fi</p>
+                          <p className="text-[9px] text-slate-400">Phone &amp; computer</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
+                        <Wifi className="w-4 h-4 text-[#14B8A6] shrink-0" />
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-900">Stable Network</p>
+                          <p className="text-[9px] text-slate-400">Good signal strength</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step-by-Step Guide */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-1">
+                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4">Connection Steps</h3>
+
+                    {/* Step 1 */}
+                    <div className="flex gap-4 p-4 rounded-xl hover:bg-slate-50/80 transition-colors">
+                      <div className="w-8 h-8 rounded-full bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center text-xs font-black shrink-0 border border-[#14B8A6]/20">
+                        1
+                      </div>
+                      <div className="space-y-1.5">
+                        <h4 className="text-xs font-bold text-slate-900">Install DroidCam on Your Phone</h4>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          Download and install the <strong className="text-slate-700">DroidCam</strong> app from the Google Play Store (Android) or Apple App Store (iPhone). The app is free and does not require an account.
+                        </p>
+                        <div className="flex items-center gap-4 pt-1">
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                            <Download className="w-2.5 h-2.5" /> Google Play
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                            <Download className="w-2.5 h-2.5" /> App Store
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Step 2 */}
+                    <div className="flex gap-4 p-4 rounded-xl hover:bg-slate-50/80 transition-colors">
+                      <div className="w-8 h-8 rounded-full bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center text-xs font-black shrink-0 border border-[#14B8A6]/20">
+                        2
+                      </div>
+                      <div className="space-y-1.5">
+                        <h4 className="text-xs font-bold text-slate-900">Install DroidCam Client on Your Computer</h4>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          Go to <strong className="text-slate-700">dev47apps.com</strong> and download the DroidCam Client for Windows. Run the installer and follow the prompts. Restart your browser after installation.
+                        </p>
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full pt-1">
+                          <Download className="w-2.5 h-2.5" /> dev47apps.com
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Step 3 */}
+                    <div className="flex gap-4 p-4 rounded-xl hover:bg-slate-50/80 transition-colors">
+                      <div className="w-8 h-8 rounded-full bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center text-xs font-black shrink-0 border border-[#14B8A6]/20">
+                        3
+                      </div>
+                      <div className="space-y-1.5">
+                        <h4 className="text-xs font-bold text-slate-900">Connect Both Devices to the Same Wi-Fi</h4>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          Ensure your smartphone and computer are connected to the <strong className="text-slate-700">same Wi-Fi network</strong>. DroidCam will not work if they are on different networks. Avoid using a VPN or wired-only connection on the computer.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 4 */}
+                    <div className="flex gap-4 p-4 rounded-xl hover:bg-slate-50/80 transition-colors">
+                      <div className="w-8 h-8 rounded-full bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center text-xs font-black shrink-0 border border-[#14B8A6]/20">
+                        4
+                      </div>
+                      <div className="space-y-1.5">
+                        <h4 className="text-xs font-bold text-slate-900">Open DroidCam on Your Phone</h4>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          Launch the DroidCam app on your phone. You will see a <strong className="text-slate-700">Wi-Fi IP address</strong> and port number displayed on screen (e.g. <code className="bg-slate-100 px-1 py-0.5 rounded text-[10px] font-mono text-slate-700">192.168.1.42:4747</code>). Keep this screen open — you will need the IP address in the next step.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 5 */}
+                    <div className="flex gap-4 p-4 rounded-xl hover:bg-slate-50/80 transition-colors">
+                      <div className="w-8 h-8 rounded-full bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center text-xs font-black shrink-0 border border-[#14B8A6]/20">
+                        5
+                      </div>
+                      <div className="space-y-1.5">
+                        <h4 className="text-xs font-bold text-slate-900">Enter the IP Address in DroidCam Client</h4>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          Open the DroidCam Client on your computer. Type the <strong className="text-slate-700">IP address and port</strong> shown on your phone into the &quot;Device IP&quot; field. Make sure the WiFi icon is selected (not USB).
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 6 */}
+                    <div className="flex gap-4 p-4 rounded-xl hover:bg-slate-50/80 transition-colors">
+                      <div className="w-8 h-8 rounded-full bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center text-xs font-black shrink-0 border border-[#14B8A6]/20">
+                        6
+                      </div>
+                      <div className="space-y-1.5">
+                        <h4 className="text-xs font-bold text-slate-900">Start the Connection</h4>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          Click <strong className="text-slate-700">&quot;Start&quot;</strong> in the DroidCam Client. Your phone&apos;s camera feed should now appear in the client window. The phone camera is now available as a webcam device on your computer.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 7 */}
+                    <div className="flex gap-4 p-4 rounded-xl hover:bg-slate-50/80 transition-colors">
+                      <div className="w-8 h-8 rounded-full bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center text-xs font-black shrink-0 border border-[#14B8A6]/20">
+                        7
+                      </div>
+                      <div className="space-y-1.5">
+                        <h4 className="text-xs font-bold text-slate-900">Select DroidCam as Your Camera</h4>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          When you start an exercise recording session, your browser will ask for camera permission. Select <strong className="text-slate-700">&quot;DroidCam Virtual Webcam&quot;</strong> from the camera dropdown list. If it does not appear, refresh the browser page.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 8 */}
+                    <div className="flex gap-4 p-4 rounded-xl bg-[#14B8A6]/5 border border-[#14B8A6]/10 rounded-xl">
+                      <div className="w-8 h-8 rounded-full bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center text-xs font-black shrink-0 border border-[#14B8A6]/20">
+                        8
+                      </div>
+                      <div className="space-y-1.5">
+                        <h4 className="text-xs font-bold text-slate-900">You&apos;re Ready to Go!</h4>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          Position your phone to capture a full-body view for accurate exercise analysis. Keep the DroidCam app open in the background while recording. Your sessions will now use the phone camera for better accuracy.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Troubleshooting */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4">Troubleshooting</h3>
+                    <div className="space-y-3">
+                      <div className="p-3 rounded-lg bg-slate-50 border border-slate-100 text-[11px]">
+                        <p className="font-bold text-slate-900 mb-0.5">DroidCam not showing in browser camera list?</p>
+                        <p className="text-slate-500">Refresh the browser page after starting DroidCam. Make sure the DroidCam Client is running on your computer.</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-slate-50 border border-slate-100 text-[11px]">
+                        <p className="font-bold text-slate-900 mb-0.5">Connection failed or black screen?</p>
+                        <p className="text-slate-500">Verify both devices are on the same Wi-Fi network. Restart the DroidCam app on your phone and the client on your computer.</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-slate-50 border border-slate-100 text-[11px]">
+                        <p className="font-bold text-slate-900 mb-0.5">Laggy or choppy video?</p>
+                        <p className="text-slate-500">Move closer to your Wi-Fi router or switch to a 5 GHz network. Close other bandwidth-heavy apps on your phone.</p>
+                      </div>
                     </div>
                   </div>
 
@@ -1089,64 +1426,482 @@ function ProtocolItem({
 // ── CalendarGrid ────────────────────────────────────────────────
 
 function CalendarGrid({
-  patientId, patients
+  patientId,
+  patients,
+  selectedAssignmentId,
+  isMounted,
+  onExerciseClick,
 }: {
   patientId: string
   patients: PatientData[]
+  selectedAssignmentId: string
+  isMounted: boolean
+  onExerciseClick: (patientId: string) => void
 }) {
-  const patient = patients.find(p => p.info.id === patientId)
 
-  const weekdays = [
-    { day: "Monday", routine: "Knee Extension", detail: "Quadriceps Volume Extension" },
-    { day: "Tuesday", routine: "Shoulder Exercise", detail: "Rotator Cuff Stability Focus" },
-    { day: "Wednesday", routine: "Scap Wall Slides", detail: "Scapular Mobility Posture Alignment" },
-    { day: "Thursday", routine: "Rest Day", detail: "Soft Tissue Regeneration Focus" },
-    { day: "Friday", routine: "Knee Extension", detail: "Quadriceps Extension Re-activation" }
-  ]
+  const patient = patients.find(p => p.info.id === patientId)
+  const today = new Date()
+  const currentDayName = isMounted ? format(today, "EEEE") : ""
+
+  const weekdays = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+
+  const isAll = selectedAssignmentId === "all"
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-      {weekdays.map((item, i) => {
-        let assignedExercise = item.routine
-        let subText = item.detail
-        let isRest = item.routine.toLowerCase().includes("rest")
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-4">
+      {weekdays.map((day) => {
+        const isToday = isMounted && day === currentDayName
+        let assignedExercise = ""
+        let subText = ""
+        let isRest = false
+        let sessionCount = 0
+        let hasExercise = false
+        let dayAssignments: { name: string; exercise_type: string }[] = []
 
-        if (patient && patient.assignments.length > 0) {
-          const assignIndex = i % patient.assignments.length
-          const match = patient.assignments[assignIndex]
-          if (i === 3) {
-            assignedExercise = "Rest Day"
-            subText = "Soft Tissue Regeneration"
-            isRest = true
+    if (patient) {
+      const daySchedules = patient.schedule.filter(
+        (s) => s.day_of_week === day && (isAll || s.assignment_id === selectedAssignmentId)
+      )
+      const exerciseSchedules = daySchedules.filter((s) => !s.is_rest_day)
+      isRest = daySchedules.length > 0 && daySchedules.every((s) => s.is_rest_day)
+
+      if (isRest) {
+        assignedExercise = "Rest Day"
+        subText = "Recovery"
+      } else if (exerciseSchedules.length > 0) {
+        dayAssignments = exerciseSchedules
+          .map((s) => patient.assignments.find((a) => a.id === s.assignment_id))
+          .filter(Boolean) as { name: string; exercise_type: string }[]
+        
+        if (dayAssignments.length > 0) {
+          hasExercise = true
+          if (isAll && dayAssignments.length > 1) {
+            assignedExercise = `${dayAssignments.length} exercises`
+            const doneCount = dayAssignments.filter((a) =>
+              patient.sessions.some(
+                (s) =>
+                  s.assignment_id === (a as any).id &&
+                  format(new Date(s.completed_at), "EEEE") === day
+              )
+            ).length
+            subText = `${doneCount}/${dayAssignments.length} completed`
           } else {
+            const match = dayAssignments[0] as any
             assignedExercise = match.name || match.exercise_type
             const config = getExerciseConfig(match.exercise_type)
-            subText = config ? `AI Model: ${config.name}` : "Active rehab routine"
-            isRest = false
+            subText = config ? config.name : "Active rehab"
           }
+        }
+      }
+
+      if (hasExercise) {
+        sessionCount = patient.sessions.filter(
+          s => (isAll || s.assignment_id === selectedAssignmentId) &&
+          format(new Date(s.completed_at), "EEEE") === day
+        ).length
+      }
+    }
+
+        const allDone = hasExercise && dayAssignments.length > 0 && dayAssignments.every((a) =>
+          patient?.sessions.some(
+            (s) =>
+              s.assignment_id === (a as any).id &&
+              format(new Date(s.completed_at), "EEEE") === day
+          )
+        )
+
+        const isClickable = hasExercise && patient && !allDone
+
+        const dayContent = (
+          <div className={`p-3 rounded-xl border flex flex-col justify-between h-40 shadow-sm transition-all ${
+            isClickable
+              ? "cursor-pointer hover:shadow-md hover:border-[#14B8A6]/50 active:scale-[0.98]"
+              : ""
+          } ${
+            isToday
+              ? "border-[#14B8A6] ring-1 ring-[#14B8A6] bg-[#14B8A6]/5"
+              : allDone
+                ? "bg-emerald-50/50 border-emerald-200"
+                : isRest
+                  ? "bg-slate-50 border-slate-200 text-slate-400"
+                  : "bg-white border-slate-200"
+          }`}>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-bold text-slate-800">{day.slice(0, 3)}</span>
+                <div className="flex items-center gap-1">
+                  {allDone && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
+                  {isToday && (
+                    <span className="text-[7px] font-bold text-[#14B8A6] bg-[#14B8A6]/10 px-1.5 py-0.5 rounded-full">
+                      TODAY
+                    </span>
+                  )}
+                </div>
+              </div>
+              {isAll && dayAssignments.length > 1 ? (
+                <div className="space-y-0.5 mt-1">
+                  {dayAssignments.slice(0, 3).map((a, idx) => {
+                    const done = patient?.sessions.some(
+                      (s) =>
+                        s.assignment_id === (a as any).id &&
+                        format(new Date(s.completed_at), "EEEE") === day
+                    )
+                    return (
+                      <div key={idx} className="flex items-center gap-1">
+                        {done ? (
+                          <CheckCircle2 className="w-2 h-2 text-emerald-500 shrink-0" />
+                        ) : (
+                          <div className="w-2 h-2 rounded-full border border-slate-300 shrink-0" />
+                        )}
+                        <span className={`text-[8px] font-bold truncate ${done ? "text-emerald-600" : "text-slate-700"}`}>
+                          {a.name}
+                        </span>
+                      </div>
+                    )
+                  })}
+                  {dayAssignments.length > 3 && (
+                    <span className="text-[7px] text-slate-400 font-medium">+{dayAssignments.length - 3} more</span>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <h4 className={`text-[11px] font-black truncate leading-tight mt-1 ${isRest ? "text-slate-400" : assignedExercise ? "text-slate-900" : "text-slate-300"}`}>
+                    {assignedExercise || "No plan"}
+                  </h4>
+                  <p className="text-[9px] text-slate-400 leading-snug mt-1 line-clamp-2">
+                    {subText || "—"}
+                  </p>
+                </>
+              )}
+            </div>
+
+            <div className="border-t border-slate-100 pt-2 text-[9px] font-bold text-slate-400 flex items-center justify-between">
+              {allDone ? (
+                <span className="text-emerald-600 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Done
+                </span>
+              ) : isRest ? (
+                "Rest Day"
+              ) : hasExercise ? (
+                <span className="flex items-center gap-1 text-[#14B8A6]">
+                  {sessionCount > 0 ? (
+                    <span className="text-emerald-600">{sessionCount} session{sessionCount !== 1 ? "s" : ""}</span>
+                  ) : (
+                    <>
+                      <Eye className="w-3 h-3" /> View Patient
+                    </>
+                  )}
+                </span>
+              ) : (
+                "—"
+              )}
+            </div>
+          </div>
+        )
+
+        if (isClickable && patient) {
+          return (
+            <div key={day} onClick={() => onExerciseClick(patient.info.id)}>
+              {dayContent}
+            </div>
+          )
         }
 
         return (
-          <div key={item.day} className={`p-4 rounded-xl border flex flex-col justify-between h-40 shadow-sm ${
-            isRest 
-              ? "bg-slate-50 border-slate-200 text-slate-400" 
-              : "bg-white border-[#14B8A6]/20 ring-1 ring-[#14B8A6]/5"
-          }`}>
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-800">{item.day}</span>
-                {!isRest && <span className="w-1.5 h-1.5 rounded-full bg-[#14B8A6]"></span>}
-              </div>
-              <h4 className={`text-xs font-black truncate ${isRest ? "text-slate-400" : "text-slate-900"}`}>
-                {assignedExercise}
-              </h4>
-              <p className="text-[10px] text-slate-400 leading-snug mt-1.5 line-clamp-2">
-                {subText}
-              </p>
-            </div>
+          <div key={day}>
+            {dayContent}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
-            <div className="border-t border-slate-100 pt-2 text-[9px] font-bold text-slate-400">
-              {isRest ? "Rest Interval" : "Scheduled Compliance Target"}
+// ── DoctorMonthCalendarGrid ──────────────────────────────────
+function DoctorMonthCalendarGrid({
+  patientId,
+  patients,
+  selectedAssignmentId,
+  isMounted,
+  onExerciseClick,
+}: {
+  patientId: string
+  patients: PatientData[]
+  selectedAssignmentId: string
+  isMounted: boolean
+  onExerciseClick: (patientId: string) => void
+}) {
+  const patient = patients.find(p => p.info.id === patientId)
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = today.getMonth()
+  const firstDay = new Date(year, month, 1)
+  const lastDay = new Date(year, month + 1, 0)
+  const startPad = (firstDay.getDay() + 6) % 7
+  const totalDays = lastDay.getDate()
+
+  const isAll = selectedAssignmentId === "all"
+
+  const cells: { date: Date; dateStr: string; dayNum: number; isCurrentMonth: boolean }[] = []
+  for (let i = -startPad; i < totalDays; i++) {
+    const d = new Date(year, month, i + 1)
+    cells.push({
+      date: d,
+      dateStr: format(d, "yyyy-MM-dd"),
+      dayNum: d.getDate(),
+      isCurrentMonth: d.getMonth() === month,
+    })
+  }
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+      <div className="text-center mb-4">
+        <h3 className="text-base font-black text-slate-900">{format(today, "MMMM yyyy")}</h3>
+      </div>
+      <div className="grid grid-cols-7 gap-2">
+        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+          <div key={d} className="text-center text-[11px] font-bold text-slate-400 uppercase pb-2">
+            {d}
+          </div>
+        ))}
+        {cells.map((cell) => {
+          const isToday = isMounted && format(today, "yyyy-MM-dd") === cell.dateStr
+          const dayName = format(cell.date, "EEEE")
+          
+          let dayAssignments: { name: string; exercise_type: string; id: string }[] = []
+          let isRest = false
+
+          if (patient) {
+            const daySchedules = patient.schedule.filter(
+              (s) => s.day_of_week === dayName && (isAll || s.assignment_id === selectedAssignmentId)
+            )
+            const exerciseSchedules = daySchedules.filter((s) => !s.is_rest_day)
+            isRest = daySchedules.length > 0 && daySchedules.every((s) => s.is_rest_day)
+            dayAssignments = exerciseSchedules
+              .map((s) => patient.assignments.find((a) => a.id === s.assignment_id))
+              .filter(Boolean) as { name: string; exercise_type: string; id: string }[]
+          }
+
+          const hasExercises = dayAssignments.length > 0
+          const allDone = hasExercises && dayAssignments.every((a) =>
+            patient?.sessions.some(
+              (s) =>
+                s.assignment_id === a.id &&
+                format(new Date(s.completed_at), "yyyy-MM-dd") === cell.dateStr
+            )
+          )
+          const doneCount = dayAssignments.filter((a) =>
+            patient?.sessions.some(
+              (s) =>
+                s.assignment_id === a.id &&
+                format(new Date(s.completed_at), "yyyy-MM-dd") === cell.dateStr
+            )
+          ).length
+
+          const firstAssignment = dayAssignments[0]
+          const isClickable = hasExercises && !allDone && firstAssignment && patient
+
+          const inner = (
+            <div className={`p-2.5 rounded-lg border min-h-[88px] flex flex-col justify-between transition-all ${
+              isClickable
+                ? "cursor-pointer hover:shadow-md hover:border-[#14B8A6]/50 active:scale-[0.98]"
+                : ""
+            } ${
+              !cell.isCurrentMonth
+                ? "bg-slate-50/50 border-slate-100 text-slate-300"
+                : isToday
+                  ? "border-[#14B8A6] ring-1 ring-[#14B8A6] bg-[#14B8A6]/5"
+                  : allDone
+                    ? "bg-emerald-50/50 border-emerald-200"
+                    : isRest
+                      ? "bg-slate-50 border-slate-200"
+                      : "bg-white border-slate-200"
+            }`}>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs font-bold ${!cell.isCurrentMonth ? "text-slate-300" : isToday ? "text-[#14B8A6]" : "text-slate-700"}`}>
+                    {cell.dayNum}
+                  </span>
+                  {allDone && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
+                </div>
+                {cell.isCurrentMonth && hasExercises && (
+                  <div className="mt-1.5 space-y-1">
+                    {dayAssignments.slice(0, 2).map((a, idx) => {
+                      const done = patient?.sessions.some(
+                        (s) =>
+                          s.assignment_id === a.id &&
+                          format(new Date(s.completed_at), "yyyy-MM-dd") === cell.dateStr
+                      )
+                      return (
+                        <div key={idx} className="flex items-center gap-1.5">
+                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${done ? "bg-emerald-500" : "bg-[#14B8A6]"}`} />
+                          <span className={`text-[9px] font-bold truncate ${done ? "text-emerald-600" : "text-slate-600"}`}>
+                            {a.name}
+                          </span>
+                        </div>
+                      )
+                    })}
+                    {dayAssignments.length > 2 && (
+                      <span className="text-[9px] text-slate-400 font-medium">+{dayAssignments.length - 2} more</span>
+                    )}
+                  </div>
+                )}
+              </div>
+              {cell.isCurrentMonth && hasExercises && (
+                <div className="border-t border-slate-100 pt-1.5 mt-1.5">
+                  {allDone ? (
+                    <span className="text-[9px] font-bold text-emerald-600">Done</span>
+                  ) : (
+                    <span className="text-[9px] font-bold text-[#14B8A6]">{doneCount}/{dayAssignments.length}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+
+          if (isClickable && patient && firstAssignment) {
+            return (
+              <div key={cell.dateStr} onClick={() => onExerciseClick(patient.info.id)}>
+                {inner}
+              </div>
+            )
+          }
+          return <div key={cell.dateStr}>{inner}</div>
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── DoctorTodayView ──────────────────────────────────────────
+function DoctorTodayView({
+  patientId,
+  patients,
+  selectedAssignmentId,
+  isMounted,
+  onExerciseClick,
+}: {
+  patientId: string
+  patients: PatientData[]
+  selectedAssignmentId: string
+  isMounted: boolean
+  onExerciseClick: (patientId: string) => void
+}) {
+  const patient = patients.find(p => p.info.id === patientId)
+  const today = new Date()
+  const todayStr = format(today, "yyyy-MM-dd")
+  const todayName = format(today, "EEEE")
+
+  if (!patient) {
+    return (
+      <div className="bg-white border border-slate-200 rounded-xl p-8 shadow-sm text-center">
+        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+          <CalendarIcon className="w-6 h-6 text-slate-400" />
+        </div>
+        <p className="text-sm font-bold text-slate-700">Select a patient to view their schedule</p>
+        <p className="text-xs text-slate-400 mt-1">Choose a patient from the dropdown above.</p>
+      </div>
+    )
+  }
+
+  const isAll = selectedAssignmentId === "all"
+  const todaySchedule = patient.schedule.filter(
+    (s) => s.day_of_week === todayName && (isAll || s.assignment_id === selectedAssignmentId) && !s.is_rest_day
+  )
+
+  const todayAssignments = todaySchedule
+    .map((s) => patient.assignments.find((a) => a.id === s.assignment_id))
+    .filter(Boolean) as ExerciseAssignment[]
+
+  if (todayAssignments.length === 0) {
+    return (
+      <div className="bg-white border border-slate-200 rounded-xl p-8 shadow-sm text-center">
+        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+          <CalendarIcon className="w-6 h-6 text-slate-400" />
+        </div>
+        <p className="text-sm font-bold text-slate-700">No exercises scheduled for today</p>
+        <p className="text-xs text-slate-400 mt-1">{getPatientName(patient.info)} has no exercises today.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {todayAssignments.map((assignment) => {
+        const config = getExerciseConfig(assignment.exercise_type)
+        const todaySessions = patient.sessions.filter(
+          (s) =>
+            s.assignment_id === assignment.id &&
+            format(new Date(s.completed_at), "yyyy-MM-dd") === todayStr
+        )
+        const totalValidReps = todaySessions.reduce((sum, s) => sum + (s.valid_reps || 0), 0)
+        const targetReps = todaySessions.length > 0
+          ? Math.max(...todaySessions.map((s) => s.reps_expected || 0))
+          : 0
+        const isDone = targetReps > 0 && totalValidReps >= targetReps
+        const hasSessions = todaySessions.length > 0
+        const progress = targetReps > 0 ? Math.min(100, Math.round((totalValidReps / targetReps) * 100)) : 0
+
+        return (
+          <div
+            key={assignment.id}
+            onClick={() => onExerciseClick(patient.info.id)}
+            className={`bg-white border rounded-xl p-5 shadow-sm cursor-pointer transition-all hover:shadow-md hover:border-[#14B8A6]/50 active:scale-[0.98] ${
+              isDone ? "border-emerald-200 bg-emerald-50/30" : "border-slate-200"
+            }`}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className={`p-2 rounded-lg shrink-0 ${
+                  isDone
+                    ? "bg-emerald-100 text-emerald-600"
+                    : "bg-[#14B8A6]/10 text-[#14B8A6]"
+                }`}>
+                  {isDone ? (
+                    <CheckCircle2 className="w-5 h-5" />
+                  ) : (
+                    <Dumbbell className="w-5 h-5" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-slate-900 truncate">{assignment.name}</h4>
+                    <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{getPatientName(patient.info)}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 font-medium">{config?.name ?? assignment.exercise_type}</p>
+                  {hasSessions && targetReps > 0 && (
+                    <div className="mt-2 space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-slate-500 font-semibold">Reps Progress</span>
+                        <span className={`font-bold ${isDone ? "text-emerald-600" : "text-slate-800"}`}>
+                          {totalValidReps}/{targetReps} valid reps
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${isDone ? "bg-emerald-500" : "bg-[#14B8A6]"}`}
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[9px] text-slate-400 font-medium">
+                        <span>{todaySessions.length} session{todaySessions.length !== 1 ? "s" : ""} today</span>
+                        <span>{todaySessions.reduce((sum, s) => sum + (s.reps_completed || 0), 0)} total reps</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="shrink-0">
+                {isDone ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold border border-emerald-200">
+                    <CheckCircle2 className="w-3 h-3" /> Done
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold border border-slate-200">
+                    <Eye className="w-3 h-3" /> View
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         )
@@ -1204,7 +1959,7 @@ function PatientDetailPanel({
       { session: "Session 5", score: 90 }
     ]
   }, [sessions])
-
+  
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-6">
       
@@ -1307,16 +2062,30 @@ function PatientDetailPanel({
                 .sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime())
 
               const hasProg = assocSessions.filter(s => s.progress_score > 0 || s.similarity_score > 0)
-              const exProgress = hasProg.length > 0 
-                ? Math.round(hasProg.reduce((acc, curr) => acc + (curr.progress_score || curr.similarity_score), 0) / hasProg.length)
-                : 60
-              const exForm = assocSessions.filter(s => s.form_score > 0).length > 0
-                ? Math.round(assocSessions.filter(s => s.form_score > 0).reduce((acc, curr) => acc + curr.form_score, 0) / assocSessions.filter(s => s.form_score > 0).length)
-                : 70
+             const exProgress = hasProg.length > 0
+  ? Math.round(
+      hasProg.reduce(
+        (acc, curr) => acc + (curr.progress_score || curr.similarity_score),
+        0
+      ) / hasProg.length
+    )
+  : 0
+              const exForm = assocSessions.length > 0
+  ? Math.round(
+      assocSessions.reduce(
+        (acc, curr) =>
+          acc +
+          (curr.form_score > 0
+            ? curr.form_score
+            : curr.similarity_score),
+        0
+      ) / assocSessions.length
+    )
+  : 0
 
               const isCompleted = completedExercises.includes(assignment.id)
               const isExpanded = expandedExercise === assignment.id
-
+              
               return (
                 <div key={assignment.id} className="bg-slate-50/50 border border-slate-100 rounded-xl p-4 space-y-3 shadow-sm">
                   

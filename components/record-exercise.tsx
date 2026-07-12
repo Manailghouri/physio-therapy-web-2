@@ -57,7 +57,8 @@ export function RecordExercise({
   const [allowProgression, setAllowProgression] = useState(true)
   const [reps, setReps] = useState(10)
   const [sets, setSets] = useState(3)
-  const [frequency, setFrequency] = useState("daily")
+  const ALL_DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
+  const [selectedDays, setSelectedDays] = useState<string[]>(["Monday","Tuesday","Wednesday","Thursday","Friday"])
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisResult, setAnalysisResult] = useState<PoseAnalysisResult | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -345,7 +346,6 @@ export function RecordExercise({
           anglesOfInterest,
           exerciseInfo
         )
-        setAnalysisResult(result)
 
         const videoName = exerciseName.trim() || exerciseConfig?.name || "exercise"
 
@@ -374,7 +374,7 @@ export function RecordExercise({
             allow_progression: allowProgression,
             reps,
             sets,
-            frequency,
+            selected_days: selectedDays,
           }),
         })
 
@@ -382,6 +382,8 @@ export function RecordExercise({
           const data = await res.json()
           throw new Error(data.error || "Failed to assign exercise")
         }
+
+        setAnalysisResult(result)
 
       } catch (error) {
         console.error("Error analyzing video:", error)
@@ -500,19 +502,67 @@ export function RecordExercise({
 
                     </div>
 
-                    {/* Frequency select */}
+                    {/* Frequency Preset */}
                     <div className="space-y-1.5">
                       <label className="uppercase tracking-wider">Frequency</label>
                       <select
-                        value={frequency}
-                        onChange={(e) => setFrequency(e.target.value)}
+                        value={(() => {
+                          const n = selectedDays.length
+                          if (n === 7) return "daily"
+                          if (n === 5 && ["Monday","Tuesday","Wednesday","Thursday","Friday"].every(d => selectedDays.includes(d))) return "5_times_week"
+                          if (n === 3 && ["Monday","Wednesday","Friday"].every(d => selectedDays.includes(d))) return "3_times_week"
+                          if (n === 1) return "weekly"
+                          return "custom"
+                        })()}
+                        onChange={(e) => {
+                          const v = e.target.value
+                          if (v === "daily") setSelectedDays([...ALL_DAYS])
+                          else if (v === "5_times_week") setSelectedDays(["Monday","Tuesday","Wednesday","Thursday","Friday"])
+                          else if (v === "3_times_week") setSelectedDays(["Monday","Wednesday","Friday"])
+                          else if (v === "weekly") setSelectedDays(["Monday"])
+                        }}
                         className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 h-[52px] text-sm focus:ring-1 focus:ring-[#14B8A6] outline-none font-medium text-slate-800 shadow-sm"
                       >
                         <option value="daily">Daily</option>
                         <option value="3_times_week">3 Times / Week</option>
                         <option value="5_times_week">5 Times / Week</option>
                         <option value="weekly">Weekly</option>
+                        <option value="custom" disabled>Custom (use buttons below)</option>
                       </select>
+                    </div>
+
+                    {/* Day Picker */}
+                    <div className="space-y-1.5">
+                      <label className="uppercase tracking-wider">Schedule Days</label>
+                      <div className="flex flex-wrap gap-2">
+                        {ALL_DAYS.map(day => {
+                          const short = day.slice(0, 3)
+                          const active = selectedDays.includes(day)
+                          return (
+                            <button
+                              key={day}
+                              type="button"
+                              onClick={() => {
+                                setSelectedDays(prev =>
+                                  active ? prev.filter(d => d !== day) : [...prev, day]
+                                )
+                              }}
+                              className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+                                active
+                                  ? "bg-[#14B8A6] text-white border-[#14B8A6] shadow-sm"
+                                  : "bg-white text-slate-400 border-slate-200 hover:border-slate-300"
+                              }`}
+                            >
+                              {short}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-medium">
+                        {selectedDays.length === 0
+                          ? "Select at least one day"
+                          : `${selectedDays.length} day${selectedDays.length !== 1 ? "s" : ""} selected`}
+                      </p>
                     </div>
 
                   </div>
@@ -536,8 +586,12 @@ export function RecordExercise({
                         <span className="text-slate-900 font-bold mt-0.5">{reps} Reps &times; {sets} Sets</span>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-slate-400 font-medium">Frequency</span>
-                        <span className="text-slate-900 font-bold capitalize mt-0.5">{frequency.replace("_", " ")}</span>
+                        <span className="text-slate-400 font-medium">Schedule</span>
+                        <span className="text-slate-900 font-bold capitalize mt-0.5">
+                          {selectedDays.length === 0
+                            ? "No days selected"
+                            : selectedDays.map(d => d.slice(0, 3)).join(", ")}
+                        </span>
                       </div>
                       <div className="flex flex-col">
                         <span className="text-slate-400 font-medium">Progression</span>

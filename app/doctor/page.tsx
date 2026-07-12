@@ -140,7 +140,8 @@ export default function DoctorDashboard() {
   const [selectedCalendarPatientId, setSelectedCalendarPatientId] =
   useState<string>("template")
   const [selectedCalendarAssignmentId, setSelectedCalendarAssignmentId] =
-  useState<string>("")
+  useState<string>("all")
+  const [calendarView, setCalendarView] = useState<"week" | "month" | "today">("week")
     const selectedPatient = patients.find(
   p => p.info.id === selectedCalendarPatientId
 )
@@ -915,61 +916,112 @@ console.log("Doctor Schedule:", scheduleRows)
               {activeTab === "calendar" && (
                 <div className="space-y-6">
                   
-                  <div className="bg-white border border-slate-200 p-5 rounded-xl shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                      <h2 className="text-sm font-bold text-slate-900 tracking-tight">Structured Treatment Agendas</h2>
-                      <p className="text-xs text-slate-500 font-medium">Select dynamic schedules to review compliance and active templates.</p>
+                  <div className="bg-white border border-slate-200 p-5 rounded-xl shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <h2 className="text-sm font-bold text-slate-900 tracking-tight">Structured Treatment Agendas</h2>
+                        <p className="text-xs text-slate-500 font-medium">Select dynamic schedules to review compliance and active templates.</p>
+                      </div>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {/* View Toggle */}
+                        <div className="flex items-center bg-slate-100 rounded-lg p-0.5 border border-slate-200">
+                          <button
+                            onClick={() => setCalendarView("today")}
+                            className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all ${
+                              calendarView === "today"
+                                ? "bg-white text-slate-900 shadow-sm"
+                                : "text-slate-500 hover:text-slate-700"
+                            }`}
+                          >
+                            Today
+                          </button>
+                          <button
+                            onClick={() => setCalendarView("week")}
+                            className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all ${
+                              calendarView === "week"
+                                ? "bg-white text-slate-900 shadow-sm"
+                                : "text-slate-500 hover:text-slate-700"
+                            }`}
+                          >
+                            This Week
+                          </button>
+                          <button
+                            onClick={() => setCalendarView("month")}
+                            className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all ${
+                              calendarView === "month"
+                                ? "bg-white text-slate-900 shadow-sm"
+                                : "text-slate-500 hover:text-slate-700"
+                            }`}
+                          >
+                            This Month
+                          </button>
+                        </div>
+                        <select
+                          value={selectedCalendarPatientId}
+                          onChange={(e) => setSelectedCalendarPatientId(e.target.value)}
+                          className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-[#14B8A6] bg-slate-50/50 outline-none font-medium font-sans"
+                        >
+                          <option value="template">All Patients</option>
+                          {patients.map(p => (
+                            <option key={p.info.id} value={p.info.id}>
+                              {getPatientName(p.info)}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          value={selectedCalendarAssignmentId}
+                          onChange={(e) => setSelectedCalendarAssignmentId(e.target.value)}
+                          className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-[#14B8A6] bg-slate-50/50 outline-none font-medium font-sans"
+                        >
+                          <option value="all">All Exercises</option>
+                          {selectedPatient?.assignments.map((assignment) => (
+                            <option key={assignment.id} value={assignment.id}>
+                              {assignment.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                    <select
-                      value={selectedCalendarPatientId}
-                      onChange={(e) => setSelectedCalendarPatientId(e.target.value)}
-                      className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-[#14B8A6] bg-slate-50/50 outline-none w-48 font-medium font-sans"
-                    >
-                      <option value="template">Standard Protocol Agendas</option>
-                      {patients.map(p => (
-                        <option key={p.info.id} value={p.info.id}>
-                          {getPatientName(p.info)}
-                        </option>
-                      ))}
-                    </select>
-                    
-                    <select
-  value={selectedCalendarAssignmentId}
-  onChange={(e) =>
-    setSelectedCalendarAssignmentId(e.target.value)
-    
-  } className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-1 focus:ring-[#14B8A6] bg-slate-50/50 outline-none w-48 font-medium font-sans"
-
->
-                        <option value="template">Exercises</option>
-
-  {selectedPatient?.assignments.map((assignment) => (
-    <option
-      key={assignment.id}
-      value={assignment.id}
-    >
-      {assignment.name}
-    </option>
-  ))}
-</select>
-</div>
                   </div>
 
                   {/* Calendar scheduler grids */}
-<CalendarGrid
-    patientId={selectedCalendarPatientId}
-    patients={patients}
-    selectedAssignmentId={
-      selectedCalendarAssignmentId
-    }
-    isMounted={isMounted}
-    onExerciseClick={(patientId) => {
-      setExpandedPatient(patientId)
-      setExpandedExercise(null)
-      setActiveTab("patients")
-    }}
-/>
+                  {calendarView === "today" ? (
+                    <DoctorTodayView
+                      patientId={selectedCalendarPatientId}
+                      patients={patients}
+                      selectedAssignmentId={selectedCalendarAssignmentId}
+                      isMounted={isMounted}
+                      onExerciseClick={(patientId) => {
+                        setExpandedPatient(patientId)
+                        setExpandedExercise(null)
+                        setActiveTab("patients")
+                      }}
+                    />
+                  ) : calendarView === "month" ? (
+                    <DoctorMonthCalendarGrid
+                      patientId={selectedCalendarPatientId}
+                      patients={patients}
+                      selectedAssignmentId={selectedCalendarAssignmentId}
+                      isMounted={isMounted}
+                      onExerciseClick={(patientId) => {
+                        setExpandedPatient(patientId)
+                        setExpandedExercise(null)
+                        setActiveTab("patients")
+                      }}
+                    />
+                  ) : (
+                    <CalendarGrid
+                      patientId={selectedCalendarPatientId}
+                      patients={patients}
+                      selectedAssignmentId={selectedCalendarAssignmentId}
+                      isMounted={isMounted}
+                      onExerciseClick={(patientId) => {
+                        setExpandedPatient(patientId)
+                        setExpandedExercise(null)
+                        setActiveTab("patients")
+                      }}
+                    />
+                  )}
 
                   {selectedPatient && selectedPatient.assignments.length > 0 && (
                     <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
@@ -1393,6 +1445,8 @@ function CalendarGrid({
 
   const weekdays = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"]
 
+  const isAll = selectedAssignmentId === "all"
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-4">
       {weekdays.map((day) => {
@@ -1402,39 +1456,61 @@ function CalendarGrid({
         let isRest = false
         let sessionCount = 0
         let hasExercise = false
+        let dayAssignments: { name: string; exercise_type: string }[] = []
 
     if (patient) {
-const daySchedule = patient.schedule.find(
-  (s) =>
-    s.day_of_week === day &&
-    s.assignment_id === selectedAssignmentId
-)
-  if (daySchedule) {
-    isRest = daySchedule.is_rest_day
-    if (isRest) {
-      assignedExercise = "Rest Day"
-      subText = "Recovery"
-    } else {
-    const match = patient.assignments.find(
-    a =>
-      a.id === daySchedule.assignment_id &&
-      a.id === selectedAssignmentId
-)
-      if (match) {
-        assignedExercise = match.name || match.exercise_type
-        const config = getExerciseConfig(match.exercise_type)
-        subText = config ? config.name : "Active rehab"
-        hasExercise = true
-      }
-      sessionCount = patient.sessions.filter(
-        s => s.assignment_id === selectedAssignmentId &&
-        format(new Date(s.completed_at), "EEEE") === day
-      ).length
-    }
-  }
-}
+      const daySchedules = patient.schedule.filter(
+        (s) => s.day_of_week === day && (isAll || s.assignment_id === selectedAssignmentId)
+      )
+      const exerciseSchedules = daySchedules.filter((s) => !s.is_rest_day)
+      isRest = daySchedules.length > 0 && daySchedules.every((s) => s.is_rest_day)
 
-        const isClickable = hasExercise && patient
+      if (isRest) {
+        assignedExercise = "Rest Day"
+        subText = "Recovery"
+      } else if (exerciseSchedules.length > 0) {
+        dayAssignments = exerciseSchedules
+          .map((s) => patient.assignments.find((a) => a.id === s.assignment_id))
+          .filter(Boolean) as { name: string; exercise_type: string }[]
+        
+        if (dayAssignments.length > 0) {
+          hasExercise = true
+          if (isAll && dayAssignments.length > 1) {
+            assignedExercise = `${dayAssignments.length} exercises`
+            const doneCount = dayAssignments.filter((a) =>
+              patient.sessions.some(
+                (s) =>
+                  s.assignment_id === (a as any).id &&
+                  format(new Date(s.completed_at), "EEEE") === day
+              )
+            ).length
+            subText = `${doneCount}/${dayAssignments.length} completed`
+          } else {
+            const match = dayAssignments[0] as any
+            assignedExercise = match.name || match.exercise_type
+            const config = getExerciseConfig(match.exercise_type)
+            subText = config ? config.name : "Active rehab"
+          }
+        }
+      }
+
+      if (hasExercise) {
+        sessionCount = patient.sessions.filter(
+          s => (isAll || s.assignment_id === selectedAssignmentId) &&
+          format(new Date(s.completed_at), "EEEE") === day
+        ).length
+      }
+    }
+
+        const allDone = hasExercise && dayAssignments.length > 0 && dayAssignments.every((a) =>
+          patient?.sessions.some(
+            (s) =>
+              s.assignment_id === (a as any).id &&
+              format(new Date(s.completed_at), "EEEE") === day
+          )
+        )
+
+        const isClickable = hasExercise && patient && !allDone
 
         const dayContent = (
           <div className={`p-3 rounded-xl border flex flex-col justify-between h-40 shadow-sm transition-all ${
@@ -1444,29 +1520,67 @@ const daySchedule = patient.schedule.find(
           } ${
             isToday
               ? "border-[#14B8A6] ring-1 ring-[#14B8A6] bg-[#14B8A6]/5"
-              : isRest
-                ? "bg-slate-50 border-slate-200 text-slate-400"
-                : "bg-white border-slate-200"
+              : allDone
+                ? "bg-emerald-50/50 border-emerald-200"
+                : isRest
+                  ? "bg-slate-50 border-slate-200 text-slate-400"
+                  : "bg-white border-slate-200"
           }`}>
             <div>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[10px] font-bold text-slate-800">{day.slice(0, 3)}</span>
-                {isToday && (
-                  <span className="text-[7px] font-bold text-[#14B8A6] bg-[#14B8A6]/10 px-1.5 py-0.5 rounded-full">
-                    TODAY
-                  </span>
-                )}
+                <div className="flex items-center gap-1">
+                  {allDone && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
+                  {isToday && (
+                    <span className="text-[7px] font-bold text-[#14B8A6] bg-[#14B8A6]/10 px-1.5 py-0.5 rounded-full">
+                      TODAY
+                    </span>
+                  )}
+                </div>
               </div>
-              <h4 className={`text-[11px] font-black truncate leading-tight mt-1 ${isRest ? "text-slate-400" : assignedExercise ? "text-slate-900" : "text-slate-300"}`}>
-                {assignedExercise || "No plan"}
-              </h4>
-              <p className="text-[9px] text-slate-400 leading-snug mt-1 line-clamp-2">
-                {subText || "—"}
-              </p>
+              {isAll && dayAssignments.length > 1 ? (
+                <div className="space-y-0.5 mt-1">
+                  {dayAssignments.slice(0, 3).map((a, idx) => {
+                    const done = patient?.sessions.some(
+                      (s) =>
+                        s.assignment_id === (a as any).id &&
+                        format(new Date(s.completed_at), "EEEE") === day
+                    )
+                    return (
+                      <div key={idx} className="flex items-center gap-1">
+                        {done ? (
+                          <CheckCircle2 className="w-2 h-2 text-emerald-500 shrink-0" />
+                        ) : (
+                          <div className="w-2 h-2 rounded-full border border-slate-300 shrink-0" />
+                        )}
+                        <span className={`text-[8px] font-bold truncate ${done ? "text-emerald-600" : "text-slate-700"}`}>
+                          {a.name}
+                        </span>
+                      </div>
+                    )
+                  })}
+                  {dayAssignments.length > 3 && (
+                    <span className="text-[7px] text-slate-400 font-medium">+{dayAssignments.length - 3} more</span>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <h4 className={`text-[11px] font-black truncate leading-tight mt-1 ${isRest ? "text-slate-400" : assignedExercise ? "text-slate-900" : "text-slate-300"}`}>
+                    {assignedExercise || "No plan"}
+                  </h4>
+                  <p className="text-[9px] text-slate-400 leading-snug mt-1 line-clamp-2">
+                    {subText || "—"}
+                  </p>
+                </>
+              )}
             </div>
 
             <div className="border-t border-slate-100 pt-2 text-[9px] font-bold text-slate-400 flex items-center justify-between">
-              {isRest ? (
+              {allDone ? (
+                <span className="text-emerald-600 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Done
+                </span>
+              ) : isRest ? (
                 "Rest Day"
               ) : hasExercise ? (
                 <span className="flex items-center gap-1 text-[#14B8A6]">
@@ -1496,6 +1610,299 @@ const daySchedule = patient.schedule.find(
         return (
           <div key={day}>
             {dayContent}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── DoctorMonthCalendarGrid ──────────────────────────────────
+function DoctorMonthCalendarGrid({
+  patientId,
+  patients,
+  selectedAssignmentId,
+  isMounted,
+  onExerciseClick,
+}: {
+  patientId: string
+  patients: PatientData[]
+  selectedAssignmentId: string
+  isMounted: boolean
+  onExerciseClick: (patientId: string) => void
+}) {
+  const patient = patients.find(p => p.info.id === patientId)
+  const today = new Date()
+  const year = today.getFullYear()
+  const month = today.getMonth()
+  const firstDay = new Date(year, month, 1)
+  const lastDay = new Date(year, month + 1, 0)
+  const startPad = (firstDay.getDay() + 6) % 7
+  const totalDays = lastDay.getDate()
+
+  const isAll = selectedAssignmentId === "all"
+
+  const cells: { date: Date; dateStr: string; dayNum: number; isCurrentMonth: boolean }[] = []
+  for (let i = -startPad; i < totalDays; i++) {
+    const d = new Date(year, month, i + 1)
+    cells.push({
+      date: d,
+      dateStr: format(d, "yyyy-MM-dd"),
+      dayNum: d.getDate(),
+      isCurrentMonth: d.getMonth() === month,
+    })
+  }
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+      <div className="text-center mb-4">
+        <h3 className="text-base font-black text-slate-900">{format(today, "MMMM yyyy")}</h3>
+      </div>
+      <div className="grid grid-cols-7 gap-2">
+        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+          <div key={d} className="text-center text-[11px] font-bold text-slate-400 uppercase pb-2">
+            {d}
+          </div>
+        ))}
+        {cells.map((cell) => {
+          const isToday = isMounted && format(today, "yyyy-MM-dd") === cell.dateStr
+          const dayName = format(cell.date, "EEEE")
+          
+          let dayAssignments: { name: string; exercise_type: string; id: string }[] = []
+          let isRest = false
+
+          if (patient) {
+            const daySchedules = patient.schedule.filter(
+              (s) => s.day_of_week === dayName && (isAll || s.assignment_id === selectedAssignmentId)
+            )
+            const exerciseSchedules = daySchedules.filter((s) => !s.is_rest_day)
+            isRest = daySchedules.length > 0 && daySchedules.every((s) => s.is_rest_day)
+            dayAssignments = exerciseSchedules
+              .map((s) => patient.assignments.find((a) => a.id === s.assignment_id))
+              .filter(Boolean) as { name: string; exercise_type: string; id: string }[]
+          }
+
+          const hasExercises = dayAssignments.length > 0
+          const allDone = hasExercises && dayAssignments.every((a) =>
+            patient?.sessions.some(
+              (s) =>
+                s.assignment_id === a.id &&
+                format(new Date(s.completed_at), "yyyy-MM-dd") === cell.dateStr
+            )
+          )
+          const doneCount = dayAssignments.filter((a) =>
+            patient?.sessions.some(
+              (s) =>
+                s.assignment_id === a.id &&
+                format(new Date(s.completed_at), "yyyy-MM-dd") === cell.dateStr
+            )
+          ).length
+
+          const firstAssignment = dayAssignments[0]
+          const isClickable = hasExercises && !allDone && firstAssignment && patient
+
+          const inner = (
+            <div className={`p-2.5 rounded-lg border min-h-[88px] flex flex-col justify-between transition-all ${
+              isClickable
+                ? "cursor-pointer hover:shadow-md hover:border-[#14B8A6]/50 active:scale-[0.98]"
+                : ""
+            } ${
+              !cell.isCurrentMonth
+                ? "bg-slate-50/50 border-slate-100 text-slate-300"
+                : isToday
+                  ? "border-[#14B8A6] ring-1 ring-[#14B8A6] bg-[#14B8A6]/5"
+                  : allDone
+                    ? "bg-emerald-50/50 border-emerald-200"
+                    : isRest
+                      ? "bg-slate-50 border-slate-200"
+                      : "bg-white border-slate-200"
+            }`}>
+              <div>
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs font-bold ${!cell.isCurrentMonth ? "text-slate-300" : isToday ? "text-[#14B8A6]" : "text-slate-700"}`}>
+                    {cell.dayNum}
+                  </span>
+                  {allDone && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
+                </div>
+                {cell.isCurrentMonth && hasExercises && (
+                  <div className="mt-1.5 space-y-1">
+                    {dayAssignments.slice(0, 2).map((a, idx) => {
+                      const done = patient?.sessions.some(
+                        (s) =>
+                          s.assignment_id === a.id &&
+                          format(new Date(s.completed_at), "yyyy-MM-dd") === cell.dateStr
+                      )
+                      return (
+                        <div key={idx} className="flex items-center gap-1.5">
+                          <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${done ? "bg-emerald-500" : "bg-[#14B8A6]"}`} />
+                          <span className={`text-[9px] font-bold truncate ${done ? "text-emerald-600" : "text-slate-600"}`}>
+                            {a.name}
+                          </span>
+                        </div>
+                      )
+                    })}
+                    {dayAssignments.length > 2 && (
+                      <span className="text-[9px] text-slate-400 font-medium">+{dayAssignments.length - 2} more</span>
+                    )}
+                  </div>
+                )}
+              </div>
+              {cell.isCurrentMonth && hasExercises && (
+                <div className="border-t border-slate-100 pt-1.5 mt-1.5">
+                  {allDone ? (
+                    <span className="text-[9px] font-bold text-emerald-600">Done</span>
+                  ) : (
+                    <span className="text-[9px] font-bold text-[#14B8A6]">{doneCount}/{dayAssignments.length}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+
+          if (isClickable && patient && firstAssignment) {
+            return (
+              <div key={cell.dateStr} onClick={() => onExerciseClick(patient.info.id)}>
+                {inner}
+              </div>
+            )
+          }
+          return <div key={cell.dateStr}>{inner}</div>
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── DoctorTodayView ──────────────────────────────────────────
+function DoctorTodayView({
+  patientId,
+  patients,
+  selectedAssignmentId,
+  isMounted,
+  onExerciseClick,
+}: {
+  patientId: string
+  patients: PatientData[]
+  selectedAssignmentId: string
+  isMounted: boolean
+  onExerciseClick: (patientId: string) => void
+}) {
+  const patient = patients.find(p => p.info.id === patientId)
+  const today = new Date()
+  const todayStr = format(today, "yyyy-MM-dd")
+  const todayName = format(today, "EEEE")
+
+  if (!patient) {
+    return (
+      <div className="bg-white border border-slate-200 rounded-xl p-8 shadow-sm text-center">
+        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+          <CalendarIcon className="w-6 h-6 text-slate-400" />
+        </div>
+        <p className="text-sm font-bold text-slate-700">Select a patient to view their schedule</p>
+        <p className="text-xs text-slate-400 mt-1">Choose a patient from the dropdown above.</p>
+      </div>
+    )
+  }
+
+  const isAll = selectedAssignmentId === "all"
+  const todaySchedule = patient.schedule.filter(
+    (s) => s.day_of_week === todayName && (isAll || s.assignment_id === selectedAssignmentId) && !s.is_rest_day
+  )
+
+  const todayAssignments = todaySchedule
+    .map((s) => patient.assignments.find((a) => a.id === s.assignment_id))
+    .filter(Boolean) as ExerciseAssignment[]
+
+  if (todayAssignments.length === 0) {
+    return (
+      <div className="bg-white border border-slate-200 rounded-xl p-8 shadow-sm text-center">
+        <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-3">
+          <CalendarIcon className="w-6 h-6 text-slate-400" />
+        </div>
+        <p className="text-sm font-bold text-slate-700">No exercises scheduled for today</p>
+        <p className="text-xs text-slate-400 mt-1">{getPatientName(patient.info)} has no exercises today.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {todayAssignments.map((assignment) => {
+        const config = getExerciseConfig(assignment.exercise_type)
+        const todaySessions = patient.sessions.filter(
+          (s) =>
+            s.assignment_id === assignment.id &&
+            format(new Date(s.completed_at), "yyyy-MM-dd") === todayStr
+        )
+        const totalValidReps = todaySessions.reduce((sum, s) => sum + (s.valid_reps || 0), 0)
+        const targetReps = todaySessions.length > 0
+          ? Math.max(...todaySessions.map((s) => s.reps_expected || 0))
+          : 0
+        const isDone = targetReps > 0 && totalValidReps >= targetReps
+        const hasSessions = todaySessions.length > 0
+        const progress = targetReps > 0 ? Math.min(100, Math.round((totalValidReps / targetReps) * 100)) : 0
+
+        return (
+          <div
+            key={assignment.id}
+            onClick={() => onExerciseClick(patient.info.id)}
+            className={`bg-white border rounded-xl p-5 shadow-sm cursor-pointer transition-all hover:shadow-md hover:border-[#14B8A6]/50 active:scale-[0.98] ${
+              isDone ? "border-emerald-200 bg-emerald-50/30" : "border-slate-200"
+            }`}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className={`p-2 rounded-lg shrink-0 ${
+                  isDone
+                    ? "bg-emerald-100 text-emerald-600"
+                    : "bg-[#14B8A6]/10 text-[#14B8A6]"
+                }`}>
+                  {isDone ? (
+                    <CheckCircle2 className="w-5 h-5" />
+                  ) : (
+                    <Dumbbell className="w-5 h-5" />
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-slate-900 truncate">{assignment.name}</h4>
+                    <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{getPatientName(patient.info)}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 font-medium">{config?.name ?? assignment.exercise_type}</p>
+                  {hasSessions && targetReps > 0 && (
+                    <div className="mt-2 space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="text-slate-500 font-semibold">Reps Progress</span>
+                        <span className={`font-bold ${isDone ? "text-emerald-600" : "text-slate-800"}`}>
+                          {totalValidReps}/{targetReps} valid reps
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${isDone ? "bg-emerald-500" : "bg-[#14B8A6]"}`}
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[9px] text-slate-400 font-medium">
+                        <span>{todaySessions.length} session{todaySessions.length !== 1 ? "s" : ""} today</span>
+                        <span>{todaySessions.reduce((sum, s) => sum + (s.reps_completed || 0), 0)} total reps</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="shrink-0">
+                {isDone ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold border border-emerald-200">
+                    <CheckCircle2 className="w-3 h-3" /> Done
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold border border-slate-200">
+                    <Eye className="w-3 h-3" /> View
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         )
       })}

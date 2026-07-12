@@ -2062,12 +2062,26 @@ function PatientDetailPanel({
                 .sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime())
 
               const hasProg = assocSessions.filter(s => s.progress_score > 0 || s.similarity_score > 0)
-              const exProgress = hasProg.length > 0 
-                ? Math.round(hasProg.reduce((acc, curr) => acc + (curr.progress_score || curr.similarity_score), 0) / hasProg.length)
-                : 60
-              const exForm = assocSessions.filter(s => s.form_score > 0).length > 0
-                ? Math.round(assocSessions.filter(s => s.form_score > 0).reduce((acc, curr) => acc + curr.form_score, 0) / assocSessions.filter(s => s.form_score > 0).length)
-                : 70
+             const exProgress = hasProg.length > 0
+  ? Math.round(
+      hasProg.reduce(
+        (acc, curr) => acc + (curr.progress_score || curr.similarity_score),
+        0
+      ) / hasProg.length
+    )
+  : 0
+              const exForm = assocSessions.length > 0
+  ? Math.round(
+      assocSessions.reduce(
+        (acc, curr) =>
+          acc +
+          (curr.form_score > 0
+            ? curr.form_score
+            : curr.similarity_score),
+        0
+      ) / assocSessions.length
+    )
+  : 0
 
               const isCompleted = completedExercises.includes(assignment.id)
               const isExpanded = expandedExercise === assignment.id

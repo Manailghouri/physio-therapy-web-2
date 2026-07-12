@@ -482,6 +482,35 @@ export function RecordExercise({
 
                     </div>
 
+                    {/* Frequency Preset */}
+                    <div className="space-y-1.5">
+                      <label className="uppercase tracking-wider">Frequency</label>
+                      <select
+                        value={(() => {
+                          const n = selectedDays.length
+                          if (n === 7) return "daily"
+                          if (n === 5 && ["Monday","Tuesday","Wednesday","Thursday","Friday"].every(d => selectedDays.includes(d))) return "5_times_week"
+                          if (n === 3 && ["Monday","Wednesday","Friday"].every(d => selectedDays.includes(d))) return "3_times_week"
+                          if (n === 1) return "weekly"
+                          return "custom"
+                        })()}
+                        onChange={(e) => {
+                          const v = e.target.value
+                          if (v === "daily") setSelectedDays([...ALL_DAYS])
+                          else if (v === "5_times_week") setSelectedDays(["Monday","Tuesday","Wednesday","Thursday","Friday"])
+                          else if (v === "3_times_week") setSelectedDays(["Monday","Wednesday","Friday"])
+                          else if (v === "weekly") setSelectedDays(["Monday"])
+                        }}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 h-[52px] text-sm focus:ring-1 focus:ring-[#14B8A6] outline-none font-medium text-slate-800 shadow-sm"
+                      >
+                        <option value="daily">Daily</option>
+                        <option value="3_times_week">3 Times / Week</option>
+                        <option value="5_times_week">5 Times / Week</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="custom" disabled>Custom (use buttons below)</option>
+                      </select>
+                    </div>
+
                     {/* Day Picker */}
                     <div className="space-y-1.5">
                       <label className="uppercase tracking-wider">Schedule Days</label>

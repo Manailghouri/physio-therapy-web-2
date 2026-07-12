@@ -1,13 +1,16 @@
-"use client"
+import { Button } from "@/components/ui/button";
+import { RecordExercise } from "@/components/record-exercise";
+import Link from "next/link";
 
-import { Button } from "@/components/ui/button"
-import { RecordExercise } from "@/components/record-exercise"
-import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
-
-export default function RecordPage() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
+export default async function RecordPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    name?: string;
+    type?: string;
+  }>;
+}) {
+  const params = await searchParams;
 
   return (
     <main className="min-h-screen bg-background p-8">
@@ -17,12 +20,11 @@ export default function RecordPage() {
         </Link>
 
         <RecordExercise
-          defaultName={searchParams.get("name") || ""}
-          defaultType={searchParams.get("type") || "knee-extension"}
-          onComplete={() => router.push("/doctor")}
+          defaultName={params.name ?? ""}
+          defaultType={params.type ?? "knee-extension"}
           doneLabel="Back to Dashboard"
         />
       </div>
     </main>
-  )
+  );
 }

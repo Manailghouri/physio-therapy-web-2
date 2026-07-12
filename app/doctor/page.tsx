@@ -964,6 +964,11 @@ console.log("Doctor Schedule:", scheduleRows)
       selectedCalendarAssignmentId
     }
     isMounted={isMounted}
+    onExerciseClick={(patientId) => {
+      setExpandedPatient(patientId)
+      setExpandedExercise(null)
+      setActiveTab("patients")
+    }}
 />
 
                   {selectedPatient && selectedPatient.assignments.length > 0 && (
@@ -1373,11 +1378,13 @@ function CalendarGrid({
   patients,
   selectedAssignmentId,
   isMounted,
+  onExerciseClick,
 }: {
   patientId: string
   patients: PatientData[]
   selectedAssignmentId: string
   isMounted: boolean
+  onExerciseClick: (patientId: string) => void
 }) {
 
   const patient = patients.find(p => p.info.id === patientId)
@@ -1394,6 +1401,7 @@ function CalendarGrid({
         let subText = ""
         let isRest = false
         let sessionCount = 0
+        let hasExercise = false
 
     if (patient) {
 const daySchedule = patient.schedule.find(
@@ -1416,6 +1424,7 @@ const daySchedule = patient.schedule.find(
         assignedExercise = match.name || match.exercise_type
         const config = getExerciseConfig(match.exercise_type)
         subText = config ? config.name : "Active rehab"
+        hasExercise = true
       }
       sessionCount = patient.sessions.filter(
         s => s.assignment_id === selectedAssignmentId &&
@@ -1425,8 +1434,14 @@ const daySchedule = patient.schedule.find(
   }
 }
 
-        return (
-          <div key={day} className={`p-3 rounded-xl border flex flex-col justify-between h-40 shadow-sm transition-all ${
+        const isClickable = hasExercise && patient
+
+        const dayContent = (
+          <div className={`p-3 rounded-xl border flex flex-col justify-between h-40 shadow-sm transition-all ${
+            isClickable
+              ? "cursor-pointer hover:shadow-md hover:border-[#14B8A6]/50 active:scale-[0.98]"
+              : ""
+          } ${
             isToday
               ? "border-[#14B8A6] ring-1 ring-[#14B8A6] bg-[#14B8A6]/5"
               : isRest
@@ -1453,18 +1468,34 @@ const daySchedule = patient.schedule.find(
             <div className="border-t border-slate-100 pt-2 text-[9px] font-bold text-slate-400 flex items-center justify-between">
               {isRest ? (
                 "Rest Day"
-              ) : assignedExercise ? (
-                <span className="flex items-center gap-1">
+              ) : hasExercise ? (
+                <span className="flex items-center gap-1 text-[#14B8A6]">
                   {sessionCount > 0 ? (
                     <span className="text-emerald-600">{sessionCount} session{sessionCount !== 1 ? "s" : ""}</span>
                   ) : (
-                    "Scheduled"
+                    <>
+                      <Eye className="w-3 h-3" /> View Patient
+                    </>
                   )}
                 </span>
               ) : (
                 "—"
               )}
             </div>
+          </div>
+        )
+
+        if (isClickable && patient) {
+          return (
+            <div key={day} onClick={() => onExerciseClick(patient.info.id)}>
+              {dayContent}
+            </div>
+          )
+        }
+
+        return (
+          <div key={day}>
+            {dayContent}
           </div>
         )
       })}

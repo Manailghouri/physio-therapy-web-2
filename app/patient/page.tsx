@@ -1172,6 +1172,7 @@ function WeeklyCalendarGrid({
 
         let routineName = "No Exercise Assigned"
         let subText = "No treatment scheduled"
+        let assignmentId: string | null = null
 
         if (daySchedule) {
           if (isRest) {
@@ -1183,14 +1184,21 @@ function WeeklyCalendarGrid({
             )
             if (assignment) {
               routineName = assignment.name
+              assignmentId = assignment.id
               const config = getExerciseConfig(assignment.exercise_type)
               subText = config ? config.name : "Treatment plan"
             }
           }
         }
 
-        return (
-          <div key={item.day} className={`p-4 rounded-xl border flex flex-col justify-between h-44 shadow-sm transition-all ${
+        const isClickable = !isRest && assignmentId && !isCompleted
+
+        const dayContent = (
+          <div className={`p-4 rounded-xl border flex flex-col justify-between h-44 shadow-sm transition-all ${
+            isClickable
+              ? "cursor-pointer hover:shadow-md hover:border-[#14B8A6]/50 active:scale-[0.98]"
+              : ""
+          } ${
             isToday
               ? "border-[#14B8A6] ring-1 ring-[#14B8A6] bg-[#14B8A6]/5"
               : isCompleted
@@ -1229,11 +1237,27 @@ function WeeklyCalendarGrid({
               ) : isRest ? (
                 "Rest Day"
               ) : daySchedule ? (
-                "Scheduled"
+                <span className="flex items-center gap-1 text-[#14B8A6]">
+                  <Play className="w-3 h-3 fill-current" /> Start Exercise
+                </span>
               ) : (
                 "No plan"
               )}
             </div>
+          </div>
+        )
+
+        if (isClickable && assignmentId) {
+          return (
+            <Link key={item.day} href={`/patient/compare/${assignmentId}`}>
+              {dayContent}
+            </Link>
+          )
+        }
+
+        return (
+          <div key={item.day}>
+            {dayContent}
           </div>
         )
       })}

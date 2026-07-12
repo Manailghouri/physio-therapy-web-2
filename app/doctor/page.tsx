@@ -20,7 +20,8 @@ import {
   ChevronDown, ChevronRight, Plus, Loader2, Clock,
   Calendar as CalendarIcon, Target, User, Bell, LogOut, Sparkles,
   ShieldAlert, Menu, X, ArrowUpRight, CheckCircle2,
-  Trash2, Eye, EyeOff, Clipboard, AlertTriangle
+  Trash2, Eye, EyeOff, Clipboard, AlertTriangle, Camera, Wifi,
+  Download, MonitorSmartphone, Globe, CheckCircle
 } from "lucide-react"
 import { format, formatDistanceToNow } from "date-fns"
 import { motion, AnimatePresence } from "framer-motion"
@@ -472,6 +473,7 @@ console.log("Doctor Schedule:", scheduleRows)
           <SidebarLink active={activeTab === "overview"} onClick={() => { setActiveTab("overview"); setExpandedPatient(null) }} icon={<Activity className="w-4 h-4" />} label="Overview" />
           <SidebarLink active={activeTab === "patients"} onClick={() => { setActiveTab("patients") }} icon={<Users className="w-4 h-4" />} label="Patients" />
           <SidebarLink active={activeTab === "calendar"} onClick={() => { setActiveTab("calendar") }} icon={<CalendarIcon className="w-4 h-4" />} label="Calendar" />
+          <SidebarLink active={activeTab === "droidcam"} onClick={() => { setActiveTab("droidcam") }} icon={<Camera className="w-4 h-4" />} label="DroidCam Setup" />
         </nav>
 
         {/* User profile */}
@@ -528,6 +530,7 @@ console.log("Doctor Schedule:", scheduleRows)
                 <SidebarLink active={activeTab === "overview"} onClick={() => { setActiveTab("overview"); setExpandedPatient(null); setSidebarOpen(false) }} icon={<Activity className="w-4 h-4" />} label="Overview" />
                 <SidebarLink active={activeTab === "patients"} onClick={() => { setActiveTab("patients"); setSidebarOpen(false) }} icon={<Users className="w-4 h-4" />} label="Patients" />
                 <SidebarLink active={activeTab === "calendar"} onClick={() => { setActiveTab("calendar"); setSidebarOpen(false) }} icon={<CalendarIcon className="w-4 h-4" />} label="Calendar" />
+                <SidebarLink active={activeTab === "droidcam"} onClick={() => { setActiveTab("droidcam"); setSidebarOpen(false) }} icon={<Camera className="w-4 h-4" />} label="DroidCam Setup" />
               </nav>
 
               <div className="p-4 border-t border-slate-800 bg-slate-950/40">
@@ -991,6 +994,196 @@ console.log("Doctor Schedule:", scheduleRows)
                       </div>
                     </div>
                   )}
+
+                </div>
+              )}
+
+              {/* ── 4. DROIDCAM SETUP TAB ─────────────────────────────── */}
+              {activeTab === "droidcam" && (
+                <div className="space-y-6 max-w-3xl mx-auto">
+
+                  {/* Hero Banner */}
+                  <div className="bg-[#0F172A] rounded-xl p-6 text-white relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-48 h-48 bg-[#14B8A6]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                    <div className="relative flex items-start gap-4">
+                      <div className="p-3 rounded-xl bg-[#14B8A6]/20 border border-[#14B8A6]/30 shrink-0">
+                        <Camera className="w-6 h-6 text-[#14B8A6]" />
+                      </div>
+                      <div>
+                        <h2 className="text-base font-black tracking-tight">Connect to DroidCam</h2>
+                        <p className="text-xs text-slate-400 mt-1 leading-relaxed max-w-lg">
+                          Use your smartphone as a high-quality wireless webcam for exercise recording sessions. DroidCam gives you a wider field of view and better positioning flexibility than a built-in laptop camera.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Requirements */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4">Before You Start</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
+                        <MonitorSmartphone className="w-4 h-4 text-[#14B8A6] shrink-0" />
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-900">Smartphone</p>
+                          <p className="text-[9px] text-slate-400">Android or iPhone</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
+                        <Globe className="w-4 h-4 text-[#14B8A6] shrink-0" />
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-900">Same Wi-Fi</p>
+                          <p className="text-[9px] text-slate-400">Phone &amp; computer</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
+                        <Wifi className="w-4 h-4 text-[#14B8A6] shrink-0" />
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-900">Stable Network</p>
+                          <p className="text-[9px] text-slate-400">Good signal strength</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step-by-Step Guide */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-1">
+                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4">Connection Steps</h3>
+
+                    {/* Step 1 */}
+                    <div className="flex gap-4 p-4 rounded-xl hover:bg-slate-50/80 transition-colors">
+                      <div className="w-8 h-8 rounded-full bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center text-xs font-black shrink-0 border border-[#14B8A6]/20">
+                        1
+                      </div>
+                      <div className="space-y-1.5">
+                        <h4 className="text-xs font-bold text-slate-900">Install DroidCam on Your Phone</h4>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          Download and install the <strong className="text-slate-700">DroidCam</strong> app from the Google Play Store (Android) or Apple App Store (iPhone). The app is free and does not require an account.
+                        </p>
+                        <div className="flex items-center gap-4 pt-1">
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                            <Download className="w-2.5 h-2.5" /> Google Play
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                            <Download className="w-2.5 h-2.5" /> App Store
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Step 2 */}
+                    <div className="flex gap-4 p-4 rounded-xl hover:bg-slate-50/80 transition-colors">
+                      <div className="w-8 h-8 rounded-full bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center text-xs font-black shrink-0 border border-[#14B8A6]/20">
+                        2
+                      </div>
+                      <div className="space-y-1.5">
+                        <h4 className="text-xs font-bold text-slate-900">Install DroidCam Client on Your Computer</h4>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          Go to <strong className="text-slate-700">dev47apps.com</strong> and download the DroidCam Client for Windows. Run the installer and follow the prompts. Restart your browser after installation.
+                        </p>
+                        <span className="inline-flex items-center gap-1 text-[9px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full pt-1">
+                          <Download className="w-2.5 h-2.5" /> dev47apps.com
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Step 3 */}
+                    <div className="flex gap-4 p-4 rounded-xl hover:bg-slate-50/80 transition-colors">
+                      <div className="w-8 h-8 rounded-full bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center text-xs font-black shrink-0 border border-[#14B8A6]/20">
+                        3
+                      </div>
+                      <div className="space-y-1.5">
+                        <h4 className="text-xs font-bold text-slate-900">Connect Both Devices to the Same Wi-Fi</h4>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          Ensure your smartphone and computer are connected to the <strong className="text-slate-700">same Wi-Fi network</strong>. DroidCam will not work if they are on different networks. Avoid using a VPN or wired-only connection on the computer.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 4 */}
+                    <div className="flex gap-4 p-4 rounded-xl hover:bg-slate-50/80 transition-colors">
+                      <div className="w-8 h-8 rounded-full bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center text-xs font-black shrink-0 border border-[#14B8A6]/20">
+                        4
+                      </div>
+                      <div className="space-y-1.5">
+                        <h4 className="text-xs font-bold text-slate-900">Open DroidCam on Your Phone</h4>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          Launch the DroidCam app on your phone. You will see a <strong className="text-slate-700">Wi-Fi IP address</strong> and port number displayed on screen (e.g. <code className="bg-slate-100 px-1 py-0.5 rounded text-[10px] font-mono text-slate-700">192.168.1.42:4747</code>). Keep this screen open — you will need the IP address in the next step.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 5 */}
+                    <div className="flex gap-4 p-4 rounded-xl hover:bg-slate-50/80 transition-colors">
+                      <div className="w-8 h-8 rounded-full bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center text-xs font-black shrink-0 border border-[#14B8A6]/20">
+                        5
+                      </div>
+                      <div className="space-y-1.5">
+                        <h4 className="text-xs font-bold text-slate-900">Enter the IP Address in DroidCam Client</h4>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          Open the DroidCam Client on your computer. Type the <strong className="text-slate-700">IP address and port</strong> shown on your phone into the &quot;Device IP&quot; field. Make sure the WiFi icon is selected (not USB).
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 6 */}
+                    <div className="flex gap-4 p-4 rounded-xl hover:bg-slate-50/80 transition-colors">
+                      <div className="w-8 h-8 rounded-full bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center text-xs font-black shrink-0 border border-[#14B8A6]/20">
+                        6
+                      </div>
+                      <div className="space-y-1.5">
+                        <h4 className="text-xs font-bold text-slate-900">Start the Connection</h4>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          Click <strong className="text-slate-700">&quot;Start&quot;</strong> in the DroidCam Client. Your phone&apos;s camera feed should now appear in the client window. The phone camera is now available as a webcam device on your computer.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 7 */}
+                    <div className="flex gap-4 p-4 rounded-xl hover:bg-slate-50/80 transition-colors">
+                      <div className="w-8 h-8 rounded-full bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center text-xs font-black shrink-0 border border-[#14B8A6]/20">
+                        7
+                      </div>
+                      <div className="space-y-1.5">
+                        <h4 className="text-xs font-bold text-slate-900">Select DroidCam as Your Camera</h4>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          When you start an exercise recording session, your browser will ask for camera permission. Select <strong className="text-slate-700">&quot;DroidCam Virtual Webcam&quot;</strong> from the camera dropdown list. If it does not appear, refresh the browser page.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 8 */}
+                    <div className="flex gap-4 p-4 rounded-xl bg-[#14B8A6]/5 border border-[#14B8A6]/10 rounded-xl">
+                      <div className="w-8 h-8 rounded-full bg-[#14B8A6]/10 text-[#14B8A6] flex items-center justify-center text-xs font-black shrink-0 border border-[#14B8A6]/20">
+                        8
+                      </div>
+                      <div className="space-y-1.5">
+                        <h4 className="text-xs font-bold text-slate-900">You&apos;re Ready to Go!</h4>
+                        <p className="text-[11px] text-slate-500 leading-relaxed">
+                          Position your phone to capture a full-body view for accurate exercise analysis. Keep the DroidCam app open in the background while recording. Your sessions will now use the phone camera for better accuracy.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Troubleshooting */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-4">Troubleshooting</h3>
+                    <div className="space-y-3">
+                      <div className="p-3 rounded-lg bg-slate-50 border border-slate-100 text-[11px]">
+                        <p className="font-bold text-slate-900 mb-0.5">DroidCam not showing in browser camera list?</p>
+                        <p className="text-slate-500">Refresh the browser page after starting DroidCam. Make sure the DroidCam Client is running on your computer.</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-slate-50 border border-slate-100 text-[11px]">
+                        <p className="font-bold text-slate-900 mb-0.5">Connection failed or black screen?</p>
+                        <p className="text-slate-500">Verify both devices are on the same Wi-Fi network. Restart the DroidCam app on your phone and the client on your computer.</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-slate-50 border border-slate-100 text-[11px]">
+                        <p className="font-bold text-slate-900 mb-0.5">Laggy or choppy video?</p>
+                        <p className="text-slate-500">Move closer to your Wi-Fi router or switch to a 5 GHz network. Close other bandwidth-heavy apps on your phone.</p>
+                      </div>
+                    </div>
+                  </div>
 
                 </div>
               )}

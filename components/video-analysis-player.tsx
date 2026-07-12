@@ -11,9 +11,10 @@ interface VideoAnalysisPlayerProps {
   videoBlob: Blob
   movements: MovementSequence[]
   anglesOfInterest?: string[]
+  autoPlay?: boolean
 }
 
-export function VideoAnalysisPlayer({ videoBlob, movements, anglesOfInterest }: VideoAnalysisPlayerProps) {
+export function VideoAnalysisPlayer({ videoBlob, movements, anglesOfInterest, autoPlay = false }: VideoAnalysisPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -31,9 +32,10 @@ export function VideoAnalysisPlayer({ videoBlob, movements, anglesOfInterest }: 
       }
       if (poseLandmarkerRef.current) {
         poseLandmarkerRef.current.close()
+        poseLandmarkerRef.current = null
       }
     }
-  }, [videoBlob])
+  }, [videoBlob, autoPlay])
 
   const initializePlayer = async () => {
     try {
@@ -67,6 +69,9 @@ export function VideoAnalysisPlayer({ videoBlob, movements, anglesOfInterest }: 
             canvasRef.current.height = videoRef.current.videoHeight
           }
           setIsLoading(false)
+          if (autoPlay) {
+            void playPreview()
+          }
         }
       }
     } catch (error) {
@@ -464,7 +469,24 @@ export function VideoAnalysisPlayer({ videoBlob, movements, anglesOfInterest }: 
     }
   }
 
-  const handlePlayPause = () => {
+  const playPreview = async () => {
+    if (!videoRef.current) return
+
+    try {
+      if (videoRef.current.paused) {
+        await videoRef.current.play()
+      }
+      setIsPlaying(true)
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current)
+      }
+      drawPoseAndAnnotations()
+    } catch (error) {
+      console.error("Error starting video playback:", error)
+    }
+  }
+
+  const handlePlayPause = async () => {
     if (!videoRef.current) return
 
     if (isPlaying) {
@@ -472,13 +494,11 @@ export function VideoAnalysisPlayer({ videoBlob, movements, anglesOfInterest }: 
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
       }
+      setIsPlaying(false)
     } else {
-      videoRef.current.play()
-      drawPoseAndAnnotations()
+      await playPreview()
     }
-    setIsPlaying(!isPlaying)
   }
-
 
   return (
     <Card className="p-6">
@@ -506,6 +526,20 @@ export function VideoAnalysisPlayer({ videoBlob, movements, anglesOfInterest }: 
         </div>
 
         
+      </div>
+
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handlePlayPause}
+          className="border-[#14B8A6]/30 text-[#0F172A]"
+        >
+          {isPlaying ? "Pause" : "Play learned exercise"}
+        </Button>
+        <p className="text-[11px] text-muted-foreground">
+          Auto-play starts with a MediaPipe pose overlay for the learned movement.
+        </p>
       </div>
 
       <div className="mt-4 text-xs text-muted-foreground">

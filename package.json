@@ -1,5 +1,5 @@
 {
-  "name": "my-v0-project",
+  "name": "physio-therapy-web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -56,7 +56,7 @@
     "framer-motion": "^12.40.0",
     "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",
-    "next": "16.0.3",
+    "next": "16.2.0",
     "next-themes": "^0.4.6",
     "radix-ui": "1.4.3",
     "react": "19.2.0",
